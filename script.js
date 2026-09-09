@@ -12,7 +12,6 @@ let selectedShip = 0;
 let horizontal = true;
 let gameMode = "local";
 let gameOver = false;
-let previewStart = null;
 
 const $ = id => document.getElementById(id);
 const screens = ["home","setup","battle","help"];
@@ -45,7 +44,6 @@ function renderFleet(){
     b.disabled=placed;
     b.onclick=()=>{
       selectedShip=i;
-      previewStart=null;
       renderFleet();
       renderSetup();
     };
@@ -58,7 +56,7 @@ function renderBoard(el, grid, clickable=false, preview=[], hideShips=false){
   for(let i=0;i<100;i++){
     const c=document.createElement("div");
     c.className="cell";
-    if(!hideShips && grid[i]?.shipIndex !== undefined) c.classList.add("ship");
+    if(grid[i]?.shipIndex !== undefined && (!hideShips || grid[i]?.hit)) c.classList.add("ship");
     if(preview.includes(i)) c.classList.add("preview");
     if(grid[i]?.hit) c.classList.add(grid[i].sunk?"sunk":"hit");
     if(grid[i]?.miss) c.classList.add("miss");
@@ -92,9 +90,12 @@ function placeShip(state, shipIndex, start){
 
 function getPreview(){
   if(player.ships.some(v=>v?.shipIndex===selectedShip)) return [];
-  if(previewStart === null) return [];
-  const cells=cellsFor(previewStart,horizontal,SHIPS[selectedShip].size);
-  return canPlace(player.ships,cells) ? cells : [];
+  // Preview under the first valid position only; it is not a placed ship.
+  for(let i=0;i<100;i++){
+    const cells=cellsFor(i,horizontal,SHIPS[selectedShip].size);
+    if(canPlace(player.ships,cells)) return cells;
+  }
+  return [];
 }
 
 function renderSetup(){
@@ -107,26 +108,21 @@ function renderSetup(){
 }
 
 $("setupBoard").addEventListener("click",e=>{
-  const cell=e.target.closest(".cell");
+  const cell=e.target.closest(".cell"); 
   if(!cell)return;
   const i=Number(cell.dataset.i);
 
-  // Um toque escolhe a casa inicial; o segundo toque na mesma casa confirma.
+  // Do not place a ship that has already been positioned.
   if(player.ships.some(v=>v?.shipIndex===selectedShip)) return;
 
-  if(previewStart !== i){
-    previewStart=i;
-    renderSetup();
-    return;
-  }
-
   if(placeShip(player,selectedShip,i)){
-    previewStart=null;
+    // Advance to the next ship that has not yet been placed.
     const next=SHIPS.findIndex((s,idx)=>!player.ships.some(v=>v?.shipIndex===idx));
     selectedShip=next>=0?next:0;
     renderFleet();
     renderSetup();
   }else{
+    $("statusLabel").textContent=""; 
     alert("⚠️ Não é possível colocar esse navio nessa posição.");
   }
 });
@@ -221,7 +217,7 @@ $("btnLocal").onclick=()=>{
   gameMode="local"; 
   player={ships:[],shots:new Set()}; 
   enemy={ships:[],shots:new Set()};
-  selectedShip=0; horizontal=true; previewStart=null;
+  selectedShip=0; horizontal=true;
   renderFleet(); renderSetup(); show("setup");
 };
 
@@ -229,7 +225,7 @@ $("btnComputer").onclick=()=>{
   gameMode="computer"; 
   player={ships:[],shots:new Set()}; 
   enemy={ships:[],shots:new Set()};
-  selectedShip=0; horizontal=true; previewStart=null;
+  selectedShip=0; horizontal=true;
   renderFleet(); renderSetup(); show("setup");
 };
 
