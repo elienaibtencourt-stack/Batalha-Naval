@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Batalha Naval</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <section id="home" class="screen active">
+      <div class="logo">⚓</div>
+      <h1>BATALHA NAVAL</h1>
+      <p class="subtitle">Combate naval estratégico</p>
+      <button id="btnLocal">⚔️ JOGAR LOCAL</button>
+      <button id="btnComputer">🤖 CONTRA COMPUTADOR</button>
+      <button id="btnBluetooth" class="secondary">📡 BLUETOOTH</button>
+      <button id="btnHelp" class="secondary">❓ COMO JOGAR</button>
+    </section>
+
+    <section id="setup" class="screen">
+      <h2>🚢 Posicione sua frota</h2>
+      <p class="hint">Toque em um navio para girá-lo e depois toque no tabuleiro para posicioná-lo.</p>
+      <div id="fleet" class="fleet"></div>
+      <div id="setupBoard" class="board"></div>
+      <div class="actions">
+        <button id="btnRotate">↻ GIRAR NAVIO</button>
+        <button id="btnStart" disabled>INICIAR BATALHA</button>
+        <button id="btnBackSetup" class="secondary">VOLTAR</button>
+      </div>
+    </section>
+
+    <section id="battle" class="screen">
+      <div class="topbar">
+        <div>
+          <h2>⚓ BATALHA</h2>
+          <span id="turnLabel">Sua vez</span>
+        </div>
+        <div id="statusLabel" class="status">Prepare-se!</div>
+      </div>
+
+      <div class="boards-wrap">
+        <div>
+          <h3>🎯 ATAQUE</h3>
+          <div id="enemyBoard" class="board"></div>
+        </div>
+        <div>
+          <h3>🛡️ SUA FROTA</h3>
+          <div id="playerBoard" class="board small"></div>
+        </div>
+      </div>
+
+      <button id="btnRestart">🔄 NOVA PARTIDA</button>
+    </section>
+
+    <section id="help" class="screen">
+      <h2>❓ Como jogar</h2>
+      <div class="help-box">
+        <p>1. Posicione os cinco navios no tabuleiro.</p>
+        <p>2. Escolha uma casa no tabuleiro inimigo para disparar.</p>
+        <p>3. 🎯 acerto, 🌊 água e 💥 navio afundado.</p>
+        <p>4. Destrua toda a frota adversária para vencer.</p>
+      </div>
+      <button id="btnBackHelp" class="secondary">VOLTAR</button>
+    </section>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
