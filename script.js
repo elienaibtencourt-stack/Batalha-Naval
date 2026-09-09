@@ -420,6 +420,65 @@ function renderBattle(){
   );
 }
 
+function showSunkMessage(shipName){
+  let box = document.getElementById("sunkMessage");
+  if(!box){
+    box = document.createElement("div");
+    box.id = "sunkMessage";
+    box.innerHTML = `
+      <div class="sunk-card">
+        <div class="sunk-icon">💥</div>
+        <div class="sunk-title">NAVIO AFUNDADO!</div>
+        <div class="sunk-name"></div>
+      </div>`;
+    document.body.appendChild(box);
+
+    const style = document.createElement("style");
+    style.textContent = `
+      #sunkMessage{
+        position:fixed;
+        inset:0;
+        z-index:9999;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:24px;
+        pointer-events:none;
+        background:rgba(0,10,20,.28);
+        animation:sunkFade .2s ease-out;
+      }
+      .sunk-card{
+        width:min(88vw,390px);
+        padding:24px 20px 22px;
+        border-radius:22px;
+        text-align:center;
+        background:linear-gradient(145deg,#123e59,#061b2a);
+        border:2px solid #55c7ff;
+        box-shadow:0 16px 45px rgba(0,0,0,.55), inset 0 0 25px rgba(85,199,255,.12);
+        transform:scale(.85);
+        animation:sunkPop .35s cubic-bezier(.2,1.4,.4,1) forwards;
+      }
+      .sunk-icon{font-size:54px;line-height:1;margin-bottom:8px}
+      .sunk-title{font-size:clamp(25px,7vw,36px);font-weight:900;color:#fff;letter-spacing:1px}
+      .sunk-name{margin-top:8px;font-size:18px;font-weight:700;color:#8edfff}
+      @keyframes sunkPop{to{transform:scale(1)}}
+      @keyframes sunkFade{from{opacity:0}to{opacity:1}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  box.querySelector(".sunk-name").textContent = shipName;
+  box.style.display = "flex";
+
+  // Ponto de entrada para o som do navio afundado.
+  // playSunkSound();
+
+  clearTimeout(window.__sunkMessageTimer);
+  window.__sunkMessageTimer = setTimeout(()=>{
+    box.style.display = "none";
+  },1800);
+}
+
 function handleEnemyShot(i){
   if(gameOver || enemy.shots.has(i)) return;
 
@@ -440,7 +499,7 @@ function handleEnemyShot(i){
       });
 
       renderBattle();
-      alert(`💥 ${target.name} AFUNDOU!`);
+      showSunkMessage(`🚢 ${target.name}`);
     }else{
       renderBattle();
     }
