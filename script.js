@@ -6,8 +6,8 @@ const SHIPS = [
   {id:"destroyer", name:"Contratorpedeiro", size:2}
 ];
 
-let player = {ships:[], shots:new Set()};
-let enemy = {ships:[], shots:new Set()};
+let player = {ships: [], shots:new Set()};
+let enemy = {ships: [], shots:new Set()};
 let selectedShip = 0;
 let horizontal = true;
 let gameMode = "local";
@@ -20,15 +20,33 @@ function show(id){
   screens.forEach(s => $(s).classList.toggle("active", s===id));
 }
 
-function emptyGrid(){ return Array(100).fill(null); }
+function addPlacementInfo(){
+  const h = $("setupBoard");
+  let p = document.querySelector(".placement-info");
+  if(!p){
+    p=document.createElement("div");
+    p.className="placement-info";
+    h.parentNode.insertBefore(p,h);
+  }
+  const remaining=SHIPS.filter((s,i)=>!player.ships.some(v=>v?.shipIndex===i));
+  p.textContent = remaining.length
+    ? `Navio selecionado: ${SHIPS[selectedShip].name} • ${horizontal?"Horizontal":"Vertical"}`
+    : "Todos os navios posicionados. Inicie a batalha!";
+}
 
 function renderFleet(){
   $("fleet").innerHTML = "";
   SHIPS.forEach((s,i)=>{
     const b=document.createElement("button");
-    b.className="ship-btn"+(i===selectedShip?" selected":"");
-    b.textContent=`${s.name} (${s.size})`;
-    b.onclick=()=>{selectedShip=i; renderFleet(); renderSetup();};
+    const placed=player.ships.some(v=>v?.shipIndex===i);
+    b.className="ship-btn"+(i===selectedShip&&!placed?" selected ":"")+(placed?" placed":"");
+    b.textContent=`${placed?"✓ ":""}${s.name} (${s.size})`;
+    b.disabled=placed;
+    b.onclick=()=>{
+      selectedShip=i;
+      renderFleet();
+      renderSetup();
+    };
     $("fleet").appendChild(b);
   });
 }
@@ -38,7 +56,7 @@ function renderBoard(el, grid, clickable=false, preview=[]){
   for(let i=0;i<100;i++){
     const c=document.createElement("div");
     c.className="cell";
-    if(grid[i]) c.classList.add("ship");
+    if(grid[i]?.shipIndex !== undefined) c.classList.add("ship");
     if(preview.includes(i)) c.classList.add("preview");
     if(grid[i]?.hit) c.classList.add(grid[i].sunk?"sunk":"hit");
     if(grid[i]?.miss) c.classList.add("miss");
@@ -59,43 +77,60 @@ function cellsFor(index, horizontal, size){
 }
 
 function canPlace(grid,cells){
-  return cells && cells.every(i=>!grid[i]);
+  return !!cells && cells.every(i=>!grid[i]);
 }
 
 function placeShip(state, shipIndex, start){
-  const s=SHIPS[shipIndex], cells=cellsFor(start,horizontal,s.size);
+  const s=SHIPS[shipIndex];
+  const cells=cellsFor(start,horizontal,s.size);
   if(!canPlace(state.ships,cells)) return false;
   cells.forEach(i=>state.ships[i]={id:s.id,name:s.name,shipIndex});
   return true;
 }
 
-function renderSetup(){
-  const grid=emptyGrid();
-  player.ships.forEach((v,i)=>grid[i]=v);
-  const preview=cellsFor(findEmptyStart(),horizontal,SHIPS[selectedShip].size)||[];
-  renderBoard($("setupBoard"),grid,false,preview);
-}
-
-function findEmptyStart(){
+function getPreview(){
+  if(player.ships.some(v=>v?.shipIndex===selectedShip)) return [];
+  // Preview under the first valid position only; it is not a placed ship.
   for(let i=0;i<100;i++){
     const cells=cellsFor(i,horizontal,SHIPS[selectedShip].size);
-    if(canPlace(player.ships,cells))return i;
+    if(canPlace(player.ships,cells)) return cells;
   }
-  return 0;
+  return [];
+}
+
+function renderSetup(){
+  const grid=Array(100).fill(null);
+  player.ships.forEach((v,i)=>{ if(v) grid[i]=v; });
+  renderBoard($("setupBoard"),grid,false,getPreview());
+  addPlacementInfo();
+  const complete=SHIPS.every((s,i)=>player.ships.filter(v=>v?.shipIndex===i).length===s.size);
+  $("btnStart").disabled=!complete;
 }
 
 $("setupBoard").addEventListener("click",e=>{
-  const cell=e.target.closest(".cell"); if(!cell)return;
+  const cell=e.target.closest(".cell"); 
+  if(!cell)return;
   const i=Number(cell.dataset.i);
+
+  // Do not place a ship that has already been positioned.
+  if(player.ships.some(v=>v?.shipIndex===selectedShip)) return;
+
   if(placeShip(player,selectedShip,i)){
-    selectedShip++;
-    if(selectedShip>=SHIPS.length)selectedShip=SHIPS.length-1;
-    renderFleet(); renderSetup();
-    $("btnStart").disabled=SHIPS.every((s,idx)=>player.ships.filter(x=>x?.shipIndex===idx).length===s.size)===false;
+    // Advance to the next ship that has not yet been placed.
+    const next=SHIPS.findIndex((s,idx)=>!player.ships.some(v=>v?.shipIndex===idx));
+    selectedShip=next>=0?next:0;
+    renderFleet();
+    renderSetup();
+  }else{
+    $("statusLabel").textContent=""; 
+    alert("⚠️ Não é possível colocar esse navio nessa posição.");
   }
 });
 
-$("btnRotate").onclick=()=>{horizontal=!horizontal;renderSetup()};
+$("btnRotate").onclick=()=>{
+  horizontal=!horizontal;
+  renderSetup();
+};
 
 function randomFleet(){
   const state={ships:[],shots:new Set()};
@@ -131,7 +166,10 @@ function handleEnemyShot(i){
   if(target){
     target.hit=true;
     const sunk=checkSunk(enemy,target.shipIndex);
-    if(sunk) alert(`💥 ${target.name} afundou!`);
+    if(sunk){
+      enemy.ships.forEach(v=>{if(v?.shipIndex===target.shipIndex)v.sunk=true;});
+      alert(`💥 ${target.name} afundou!`);
+    }
   }else{
     enemy.ships[i]={miss:true};
   }
@@ -158,8 +196,8 @@ function computerTurn(){
 
 function checkSunk(state,shipIndex){
   const positions=[];
-  state.ships.forEach((v,i)=>{if(v?.shipIndex===shipIndex)positions.push(v)});
-  return positions.every(v=>v.hit);
+  state.ships.forEach(v=>{if(v?.shipIndex===shipIndex)positions.push(v)});
+  return positions.length>0 && positions.every(v=>v.hit);
 }
 
 function allSunk(state){
@@ -176,14 +214,25 @@ function finish(msg){
 }
 
 $("btnLocal").onclick=()=>{
-  gameMode="local"; player={ships:[],shots:new Set()}; selectedShip=0; horizontal=true;
-  renderFleet(); renderSetup(); $("btnStart").disabled=true; show("setup");
+  gameMode="local"; 
+  player={ships:[],shots:new Set()}; 
+  enemy={ships:[],shots:new Set()};
+  selectedShip=0; horizontal=true;
+  renderFleet(); renderSetup(); show("setup");
 };
+
 $("btnComputer").onclick=()=>{
-  gameMode="computer"; player={ships:[],shots:new Set()}; selectedShip=0; horizontal=true;
-  renderFleet(); renderSetup(); $("btnStart").disabled=true; show("setup");
+  gameMode="computer"; 
+  player={ships:[],shots:new Set()}; 
+  enemy={ships:[],shots:new Set()};
+  selectedShip=0; horizontal=true;
+  renderFleet(); renderSetup(); show("setup");
 };
-$("btnBluetooth").onclick=()=>alert("📡 Modo Bluetooth será ativado na próxima etapa. A estrutura do jogo já está preparada para receber a comunicação entre dois celulares.");
+
+$("btnBluetooth").onclick=()=>{
+  alert("📡 O modo Bluetooth será ativado na próxima etapa. Esta versão já deixa o jogo separado da futura comunicação entre os dois celulares.");
+};
+
 $("btnHelp").onclick=()=>show("help");
 $("btnBackHelp").onclick=()=>show("home");
 $("btnBackSetup").onclick=()=>show("home");
