@@ -428,7 +428,7 @@ function showSunkMessage(shipName){
     box.innerHTML = `
       <div class="sunk-card">
         <div class="sunk-icon">💥</div>
-        <div class="sunk-title">NAVIO AFUNDADO!</div>
+        <div class="sunk-title">NAVIO INIMIGO AFUNDADO!</div>
         <div class="sunk-name"></div>
       </div>`;
     document.body.appendChild(box);
@@ -499,7 +499,7 @@ function handleEnemyShot(i){
       });
 
       renderBattle();
-      showSunkMessage(`🚢 ${target.name}`);
+      showSunkMessage(`🚢 ${target.name} — ALVO DESTRUÍDO`);
     }else{
       renderBattle();
     }
