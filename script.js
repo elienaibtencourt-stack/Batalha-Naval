@@ -89,10 +89,16 @@ function addShipImages(el, grid, revealShips){
     img.src=SHIP_IMAGES[ship.id];
 
     if(vertical){
+      // A imagem original é horizontal. Para uma posição vertical,
+      // giramos ao redor do centro do navio e calculamos o deslocamento
+      // para que o resultado ocupe exatamente as mesmas casas.
+      const centerX = left + spanW/2;
+      const centerY = top + spanH/2;
       img.style.width=spanH+"px";
       img.style.height=spanW+"px";
-      img.style.left=(left + (spanW-spanH)/2 + spanH/2 - spanW/2)+"px";
-      img.style.top=(top + (spanH-spanW)/2 + spanW/2 - spanH/2)+"px";
+      img.style.left=(centerX - spanH/2)+"px";
+      img.style.top=(centerY - spanW/2)+"px";
+      img.style.transformOrigin="50% 50%";
       img.style.transform="rotate(90deg)";
     }else{
       img.style.left=left+"px";
