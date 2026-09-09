@@ -15,9 +15,9 @@ let gameOver = false;
 
 /* SONS DA BATALHA */
 const GAME_SOUNDS = {
-  agua: new Audio("sons/agua.mp3"),
-  acerto: new Audio("sons/acerto.mp3"),
-  afundado: new Audio("sons/afundado.mp3")
+  agua: new Audio(new URL("sons/agua.wav", document.baseURI).href),
+  acerto: new Audio(new URL("sons/acerto.wav", document.baseURI).href),
+  afundado: new Audio(new URL("sons/afundou.wav", document.baseURI).href)
 };
 
 Object.values(GAME_SOUNDS).forEach(audio => {
@@ -31,9 +31,25 @@ function playSound(name){
   try{
     audio.currentTime = 0;
     const promise = audio.play();
-    if(promise?.catch) promise.catch(()=>{});
-  }catch(e){}
+    if(promise?.catch) promise.catch(err => console.warn("Som não reproduzido:", name, err));
+  }catch(e){
+    console.warn("Erro ao reproduzir som:", name, e);
+  }
 }
+
+// Prepara os áudios após a primeira interação do usuário no celular.
+let soundUnlocked = false;
+function unlockGameSounds(){
+  if(soundUnlocked) return;
+  soundUnlocked = true;
+  Object.values(GAME_SOUNDS).forEach(audio => {
+    try {
+      audio.load();
+    } catch(e) {}
+  });
+}
+document.addEventListener("pointerdown", unlockGameSounds, {once:true, passive:true});
+document.addEventListener("touchstart", unlockGameSounds, {once:true, passive:true});
 
 /* Posição escolhida para o próximo navio.
    O primeiro toque mostra a prévia.
@@ -457,7 +473,7 @@ function handleEnemyShot(i){
 
       playSound("afundado");
       renderBattle();
-      alert(`🚢 ${target.name} AFUNDADO!`);
+      showSunkMessage(`🚢 ${target.name} — ALVO DESTRUÍDO`);
     }else{
       playSound("acerto");
       renderBattle();
