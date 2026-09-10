@@ -18,14 +18,13 @@ let gameOver = false;
    O segundo toque no mesmo lugar confirma. */
 let previewStart = null;
 
-/* SONS: usa os arquivos da pasta sons quando existirem e, como reserva,
-   gera sons pelo Web Audio. Assim o jogo continua com som mesmo se o WAV/MP3
-   não carregar no GitHub Pages/WebIntoApp. */
+/* SONS — arquivos WAV locais, com fallback Web Audio. */
 const SOUND_FILES = {
-  agua:["sons/agua.wav","sons/agua.mp3"],
-  acerto:["sons/acerto.wav","sons/acerto.mp3"],
-  afundado:["sons/afundou.wav","sons/afundado.wav","sons/afundado.mp3"]
+  agua: "sons/agua.wav",
+  acerto: "sons/acerto.wav",
+  afundado: "sons/afundado.wav"
 };
+
 let audioCtx = null;
 const audioCache = {};
 
@@ -43,16 +42,16 @@ function fallbackSound(name){
     unlockAudio();
     if(!audioCtx) return;
     const now = audioCtx.currentTime;
-    const notes = name === "agua" ? [[180,.12,0],[110,.20,.06]] :
-                  name === "acerto" ? [[520,.10,0],[760,.14,.08]] :
-                  [[220,.15,0],[160,.20,.10],[90,.30,.23]];
+    const notes =
+      name === "agua" ? [[180,.12,0],[110,.20,.06]] :
+      name === "acerto" ? [[520,.10,0],[760,.14,.08]] :
+      [[220,.15,0],[160,.20,.10],[90,.30,.23]];
     notes.forEach(([freq,dur,delay])=>{
-      const o=audioCtx.createOscillator();
-      const g=audioCtx.createGain();
-      o.type=name === "agua" ? "sine" : (name === "acerto" ? "square" : "sawtooth");
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.type = name === "agua" ? "sine" : name === "acerto" ? "square" : "sawtooth";
       o.frequency.setValueAtTime(freq,now+delay);
       g.gain.setValueAtTime(.0001,now+delay);
-      g.gain.exponentialRampToValueAtTime(.14,now+delay+.01);
+      g.gain.exponentialRampToValueAtTime(.18,now+delay+.01);
       g.gain.exponentialRampToValueAtTime(.0001,now+delay+dur);
       o.connect(g); g.connect(audioCtx.destination);
       o.start(now+delay); o.stop(now+delay+dur+.02);
@@ -62,30 +61,22 @@ function fallbackSound(name){
 
 function playSound(name){
   unlockAudio();
+  const path = SOUND_FILES[name];
+  if(!path){ fallbackSound(name); return; }
   if(!audioCache[name]){
-    const a=new Audio();
-    a.preload="auto";
-    audioCache[name]=a;
-    let n=0;
-    const next=()=>{
-      const paths=SOUND_FILES[name]||[];
-      if(n>=paths.length) return;
-      a.src=new URL(paths[n++],document.baseURI).href;
-      a.load();
-    };
-    a.addEventListener("error",next);
-    next();
+    const a = new Audio(new URL(path, document.baseURI).href);
+    a.preload = "auto";
+    a.volume = 1.0;
+    a.addEventListener("error", ()=>fallbackSound(name), {once:true});
+    audioCache[name] = a;
   }
-  const a=audioCache[name];
+  const a = audioCache[name];
   try{
-    if(a.src){
-      a.currentTime=0;
-      const promise=a.play();
-      if(promise && promise.catch) promise.catch(()=>fallbackSound(name));
-      return;
-    }
-  }catch(e){}
-  fallbackSound(name);
+    a.pause();
+    a.currentTime = 0;
+    const p = a.play();
+    if(p && p.catch) p.catch(()=>fallbackSound(name));
+  }catch(e){ fallbackSound(name); }
 }
 
 document.addEventListener("pointerdown",unlockAudio,{once:true,passive:true});
