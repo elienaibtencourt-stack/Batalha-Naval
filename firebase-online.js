@@ -82,6 +82,9 @@
         winner:null,
         createdAt:firebase.database.ServerValue.TIMESTAMP
       });
+      // O criador também entra imediatamente na tela de posicionamento.
+      // Isso evita que apenas o segundo jogador consiga montar a frota.
+      resetForOnlineSetup();
       listenRoom();
       setBtStatus('PARTIDA CRIADA • CÓDIGO: ' + roomCode + ' • Aguardando o outro jogador...');
     }catch(err){
