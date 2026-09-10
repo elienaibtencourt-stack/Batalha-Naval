@@ -190,6 +190,46 @@
     return true;
   }
 
+  // Renderizador próprio do modo ONLINE.
+  // Não depende do renderBattle() do script.js, garantindo que os dois
+  // tabuleiros sejam desenhados e que o tabuleiro ATAQUE receba os toques.
+  function renderOnlineBoard(el, grid, clickable, revealShips){
+    if(!el) return;
+    el.innerHTML = '';
+    for(let i=0;i<100;i++){
+      const c=document.createElement('div');
+      c.className='cell';
+      const item=grid[i];
+      if(revealShips && item && item.shipIndex !== undefined) c.classList.add('ship');
+      if(item?.hit) c.classList.add(item.sunk ? 'sunk' : 'hit');
+      if(item?.miss) c.classList.add('miss');
+      if(item?.hit) c.textContent=item.sunk ? '☠️' : '💥';
+      if(item?.miss) c.textContent='💦';
+      c.dataset.i=String(i);
+      if(clickable){
+        c.style.cursor='pointer';
+        c.addEventListener('click',function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          onlineAttack(i);
+        });
+      }
+      el.appendChild(c);
+    }
+  }
+
+  function renderOnlineBattle(){
+    const enemyView=(enemy && Array.isArray(enemy.ships)) ? enemy.ships.map(v=>{
+      if(v?.sunk) return v;
+      if(v?.hit) return {hit:true};
+      if(v?.miss) return {miss:true};
+      return undefined;
+    }) : [];
+    const own=(player && Array.isArray(player.ships)) ? player.ships : [];
+    renderOnlineBoard(document.getElementById('enemyBoard'),enemyView,true,false);
+    renderOnlineBoard(document.getElementById('playerBoard'),own,false,true);
+  }
+
   function enterOnlineBattle(room){
     onlineReady = true;
     gameOver = false;
@@ -199,7 +239,7 @@
     document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
     const battle = document.getElementById('battle');
     if(battle) battle.classList.add('active');
-    try { renderBattle(); } catch(err) {
+    try { renderOnlineBattle(); } catch(err) {
       console.error('Erro ao renderizar batalha:', err);
       setBtStatus('Batalha iniciada, mas houve erro ao montar o tabuleiro.');
     }
@@ -223,6 +263,9 @@
 
     if(opp && opp.ships && gameMode === 'online'){
       enemy.ships = cloneShips(opp.ships);
+    }
+    if(room.status === 'playing' && document.getElementById('battle')?.classList.contains('active')){
+      try { renderOnlineBattle(); } catch(e) { console.error(e); }
     }
 
     // PRIMEIRO: se os dois já confirmaram a frota, iniciar a batalha.
@@ -336,7 +379,7 @@
       update.turn = move.by;
     }
     await roomRef.update(update);
-    renderBattle();
+    renderOnlineBattle();
     if(lost) setOnlineStatus('💀 Sua frota foi destruída');
   }
 
@@ -357,7 +400,7 @@
       }
       enemy.ships[idx] = target;
     }
-    renderBattle();
+    renderOnlineBattle();
     if(move.result === 'sunk'){
       setOnlineStatus('Vez do adversário');
     }else{
