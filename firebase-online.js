@@ -279,7 +279,17 @@
     if(me?.ready) onlineReady = true;
 
     if(opp && opp.ships && gameMode === 'online'){
-      enemy.ships = cloneShips(opp.ships);
+      // Atualiza a frota adversária sem apagar os tiros que EU já fiz.
+      // O Firebase guarda a posição dos navios, enquanto os resultados dos
+      // meus tiros ficam no estado local deste celular.
+      const previousShots = enemy && enemy.shots instanceof Set ? new Set(enemy.shots) : new Set();
+      const base = cloneShips(opp.ships);
+      previousShots.forEach(i => {
+        if(base[i]) base[i].hit = true;
+        else base[i] = {miss:true};
+      });
+      enemy.ships = base;
+      enemy.shots = previousShots;
     }
     if(room.status === 'playing'){
       if(!document.getElementById('battle')?.classList.contains('active')){
@@ -363,6 +373,8 @@
 
   async function resolveIncomingMove(move){
     if(!roomRef || gameOver) return;
+    // Só o jogador atingido resolve o disparo. O próprio Firebase garante
+    // que o campo 'by' identifica quem disparou.
     const target = player.ships[move.index];
     let result = 'miss';
     let shipIndex = null;
@@ -410,6 +422,7 @@
     await roomRef.update(update);
     renderOnlineBattle();
     if(lost) setOnlineStatus('💀 Sua frota foi destruída');
+    else setOnlineStatus('Sua vez');
   }
 
   function applyResolvedMove(move){
@@ -454,7 +467,9 @@
     };
     lastProcessedOwnMove = null;
     await roomRef.child('move').set(move);
+    // Mantém a informação de turno imediatamente neste aparelho.
     setOnlineStatus('Disparo enviado • aguardando resultado');
+    renderOnlineBattle();
   }
 
   async function startOnlineBattle(){
