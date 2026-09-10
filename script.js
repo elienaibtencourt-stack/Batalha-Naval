@@ -174,8 +174,10 @@ function addShipImages(el, grid, revealShips){
       img.src=SHIP_IMAGES[ship.id];
       const centerX=left + spanW/2;
       const centerY=top + spanH/2;
-      img.style.width=spanW+"px";
-      img.style.height=spanH+"px";
+      // Na vertical, a caixa da imagem precisa ser dimensionada antes da rotação
+      // para preservar o comprimento e a largura reais do navio.
+      img.style.width=spanH+"px";
+      img.style.height=spanW+"px";
       img.style.left=(centerX - spanH/2)+"px";
       img.style.top=(centerY - spanW/2)+"px";
       img.style.transformOrigin="50% 50%";
