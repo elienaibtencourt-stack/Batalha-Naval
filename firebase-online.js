@@ -70,6 +70,9 @@
     role = 'p1';
     roomCode = makeCode();
     roomRef = db.ref('rooms/' + roomCode);
+    // CORREÇÃO: quem cria a partida também entra imediatamente na preparação.
+    // A frota é limpa antes de criar a sala para o P1 começar vazio.
+    resetForOnlineSetup();
     try{
       const snap = await roomRef.once('value');
       if(snap.exists()) return createRoom();
