@@ -167,19 +167,25 @@ function addShipImages(el, grid, revealShips){
     img.src=SHIP_IMAGES[ship.id];
 
     if(vertical){
-      // Usa uma versão vertical real da imagem. Não aplicamos transform:
-      // isso evita o corte/estreitamento que ocorria no Android.
-      img.src=SHIP_IMAGES_VERTICAL[ship.id] || SHIP_IMAGES[ship.id];
-      img.style.left=left+"px";
-      img.style.top=top+"px";
+      // CORREÇÃO DEFINITIVA NO ANDROID:
+      // usamos a imagem horizontal original e giramos a caixa já dimensionada
+      // para o tamanho do navio. Assim o navio ocupa todas as casas sem
+      // ficar como uma faixa fina/cortada.
+      img.src=SHIP_IMAGES[ship.id];
+      const centerX=left + spanW/2;
+      const centerY=top + spanH/2;
       img.style.width=spanW+"px";
       img.style.height=spanH+"px";
-      img.style.transform="none";
+      img.style.left=(centerX - spanH/2)+"px";
+      img.style.top=(centerY - spanW/2)+"px";
+      img.style.transformOrigin="50% 50%";
+      img.style.transform="rotate(90deg)";
     }else{
       img.style.left=left+"px";
       img.style.top=top+"px";
       img.style.width=spanW+"px";
       img.style.height=spanH+"px";
+      img.style.transform="none";
     }
 
     el.appendChild(img);
