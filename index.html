@@ -112,7 +112,7 @@
     (function(){
       const splash=document.getElementById('splashScreen');
       const btnSound=document.getElementById('btnSound');
-      const audio=new Audio('sons/musica_abertura.mp3');
+      const audio=new Audio('musica_abertura.mp3');
       audio.loop=true;
       audio.preload='auto';
       audio.volume=0.28;
@@ -128,7 +128,12 @@
       }
       function startMusic(){
         if(!soundOn) return;
-        audio.play().then(()=>{ musicStarted=true; }).catch(()=>{});
+        const p=audio.play();
+        if(p && typeof p.then==='function'){
+          p.then(()=>{ musicStarted=true; }).catch(()=>{});
+        }else{
+          musicStarted=true;
+        }
       }
       function pauseMusic(){
         audio.pause();
@@ -145,14 +150,15 @@
       if(btnSound){
         btnSound.addEventListener('click',function(e){
           e.stopPropagation();
-          if(soundOn && !musicStarted){
-            startMusic();
-            return;
-          }
           soundOn=!soundOn;
           localStorage.setItem(STORAGE_KEY,soundOn?'on':'off');
           updateSoundButton();
-          if(soundOn) startMusic(); else pauseMusic();
+          if(soundOn){
+            startMusic();
+          }else{
+            musicStarted=false;
+            pauseMusic();
+          }
         });
       }
 
