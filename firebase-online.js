@@ -144,6 +144,12 @@
     horizontal = true;
     previewStart = null;
     gameOver = false;
+    lastProcessedIncomingMove = null;
+    lastProcessedOwnMove = null;
+    window.__onlineRoomShots = {};
+    window.__onlineMyTurn = false;
+    const rb=document.getElementById('btnRestart');
+    if(rb){ rb.style.display=''; rb.textContent='🔄 NOVA PARTIDA'; rb.disabled=false; }
     renderFleet();
     renderSetup();
     // IMPORTANTE: a tela ONLINE (#bluetooth) também tem a classe .screen.
@@ -281,8 +287,61 @@
     });
   }
 
+  async function requestRematch(){
+    if(!roomRef || !role || gameMode !== 'online') return;
+    const b=document.getElementById('btnRestart');
+    if(b){ b.disabled=true; b.textContent='⏳ AGUARDANDO ADVERSÁRIO'; }
+    setOnlineStatus('🔁 Revanche solicitada • aguardando o adversário');
+    try{
+      await roomRef.update({
+        status:'rematch_waiting',
+        ['rematch/'+role]:true
+      });
+      const snap=await roomRef.once('value');
+      const room=snap.val();
+      if(room?.rematch?.p1 && room?.rematch?.p2){
+        await roomRef.update({
+          status:'waiting',
+          turn:null,
+          move:null,
+          winner:null,
+          'player1/ready':false,
+          'player1/ships':[],
+          'player1/shots':null,
+          'player2/ready':false,
+          'player2/ships':[],
+          'player2/shots':null,
+          'rematch':null
+        });
+      }else{
+        setBtStatus('🔁 Revanche solicitada. Aguardando o outro jogador.');
+      }
+    }catch(err){
+      console.error(err);
+      if(b){ b.disabled=false; b.textContent='🔁 REVANCHE'; }
+      setOnlineStatus('Não foi possível solicitar a revanche.');
+    }
+  }
+
   function handleRoomUpdate(room){
     if(!room || !role) return;
+
+    // Revanche: mantém a mesma sala e o mesmo código. Quando os dois
+    // jogadores aceitarem, a sala é limpa e ambos voltam à preparação.
+    if(room.status==='rematch_waiting'){
+      gameOver=true;
+      const b=document.getElementById('btnRestart');
+      if(room.rematch?.[role]){
+        if(b){ b.disabled=true; b.textContent='⏳ AGUARDANDO ADVERSÁRIO'; }
+        setOnlineStatus('🔁 Revanche solicitada • aguardando o adversário');
+      }else{
+        if(b){ b.disabled=false; b.textContent='🔁 REVANCHE'; }
+        setOnlineStatus(room.winner===role ? '🏆 Você venceu • quer revanche?' : '💀 Você perdeu • quer revanche?');
+      }
+      document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
+      document.getElementById('battle')?.classList.add('active');
+      return;
+    }
 
     // Quando os dois confirmarem, inicia automaticamente.
     if(room.player1?.ready && room.player2?.ready && room.status==='waiting'){
@@ -299,12 +358,16 @@
       document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
       document.getElementById('battle')?.classList.add('active');
       try{renderOnlineBattle();}catch(err){console.error('Erro ao renderizar resultado:',err);}
-      setOnlineStatus(room.winner===role ? '🏆 VOCÊ VENCEU!' : '💀 SUA FROTA FOI DESTRUÍDA');
+      const b=document.getElementById('btnRestart');
+      if(b){ b.style.display=''; b.disabled=false; b.textContent='🔁 REVANCHE'; }
+      setOnlineStatus(room.winner===role ? '🏆 VOCÊ VENCEU! • Quer revanche?' : '💀 VOCÊ PERDEU! • Quer revanche?');
       return;
     }
 
     if(room.status==='playing'){
       onlineReady=true;
+      const b=document.getElementById('btnRestart');
+      if(b){ b.style.display=''; b.disabled=false; b.textContent='🔄 NOVA PARTIDA'; }
       syncOnlineState(room);
       updateOnlineTurnLabel(room);
       const battle=document.getElementById('battle');
@@ -327,7 +390,7 @@
       const setup=document.getElementById('setup');
       const battle=document.getElementById('battle');
       if(room.player2){
-        if(!battle?.classList.contains('active') && !setup?.classList.contains('active')){
+        if(gameOver || (!battle?.classList.contains('active') && !setup?.classList.contains('active'))){
           resetForOnlineSetup();
         }
         setBtStatus('Segundo jogador conectado • ambos podem posicionar a frota.');
@@ -554,6 +617,10 @@
       const originalRestart = restart.onclick;
       restart.onclick = function(){
         if(gameMode === 'online'){
+          if(gameOver){
+            requestRematch();
+            return;
+          }
           if(roomRef && roomListener) roomRef.off('value', roomListener);
           roomRef = null; roomListener = null; roomCode = null; role = null; onlineReady = false;
           gameMode = 'local';
