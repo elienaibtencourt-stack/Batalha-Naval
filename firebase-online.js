@@ -176,9 +176,14 @@
 
     if(room.status === 'waiting'){
       if(role === 'p1'){
-        if(room.player2 && document.getElementById('bluetooth')?.classList.contains('active')){
-          resetForOnlineSetup();
-          setBtStatus('PARTIDA ' + roomCode + ' • os dois jogadores estão conectados. Posicione sua frota.');
+        if(room.player2){
+          // IMPORTANTE: não resetar o tabuleiro do jogador 1 quando o
+          // segundo celular entra. Isso apagava os navios já posicionados.
+          // O jogador 1 permanece na tela atual e conserva sua frota.
+          setBtStatus('PARTIDA ' + roomCode + ' • segundo jogador conectado. Posicione sua frota.');
+          if(document.getElementById('setup')?.classList.contains('active')){
+            setOnlineStatus('Posicione sua frota');
+          }
         }else{
           setBtStatus('PARTIDA ' + roomCode + ' • código para o outro celular: ' + roomCode);
         }
