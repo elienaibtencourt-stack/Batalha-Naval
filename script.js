@@ -13,17 +13,33 @@ let horizontal = true;
 let gameMode = "local";
 let gameOver = false;
 
-/* SONS DA BATALHA */
-const GAME_SOUNDS = {
-  agua: new Audio("sons/agua.mp3"),
-  acerto: new Audio("sons/acerto.mp3"),
-  afundado: new Audio("sons/afundado.mp3")
+/* SONS DA BATALHA — compatível com WAV/MP3 e nomes alternativos */
+const GAME_SOUNDS = {};
+const SOUND_FILES = {
+  agua: ["sons/agua.wav", "sons/agua.mp3"],
+  acerto: ["sons/acerto.wav", "sons/acerto.mp3"],
+  afundado: ["sons/afundado.wav", "sons/afundou.wav", "sons/afundado.mp3"]
 };
 
-Object.values(GAME_SOUNDS).forEach(audio => {
+function makeSound(name){
+  const audio = new Audio();
   audio.preload = "auto";
   audio.volume = 0.85;
-});
+  let n = 0;
+  const tryNext = () => {
+    const files = SOUND_FILES[name] || [];
+    if(n >= files.length) return;
+    audio.src = new URL(files[n++], document.baseURI).href;
+    audio.load();
+  };
+  audio.addEventListener("error", tryNext);
+  tryNext();
+  return audio;
+}
+
+GAME_SOUNDS.agua = makeSound("agua");
+GAME_SOUNDS.acerto = makeSound("acerto");
+GAME_SOUNDS.afundado = makeSound("afundado");
 
 function playSound(name){
   const audio = GAME_SOUNDS[name];
@@ -111,11 +127,14 @@ function addShipImages(el, grid, revealShips){
     img.src=SHIP_IMAGES[ship.id];
 
     if(vertical){
+      /* A imagem original é horizontal. Para vertical, invertimos
+         width/height antes da rotação e compensamos o centro. */
       img.style.width=spanH+"px";
       img.style.height=spanW+"px";
-      img.style.left=(left + (spanW-spanH)/2 + spanH/2 - spanW/2)+"px";
-      img.style.top=(top + (spanH-spanW)/2 + spanW/2 - spanH/2)+"px";
+      img.style.left=(left + (spanH-spanW)/2)+"px";
+      img.style.top=(top + (spanW-spanH)/2)+"px";
       img.style.transform="rotate(90deg)";
+      img.style.transformOrigin="center center";
     }else{
       img.style.left=left+"px";
       img.style.top=top+"px";
@@ -436,6 +455,23 @@ function renderBattle(){
   );
 }
 
+function showSunkMessage(shipName){
+  let box=document.getElementById("sunkMessage");
+  if(!box){
+    box=document.createElement("div");
+    box.id="sunkMessage";
+    box.innerHTML='<div class="sunk-card"><div class="sunk-title">🚢 NAVIO INIMIGO AFUNDADO!</div><div class="sunk-name"></div></div>';
+    document.body.appendChild(box);
+    const style=document.createElement("style");
+    style.textContent=`#sunkMessage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9999;pointer-events:none;background:rgba(0,0,0,.28)}#sunkMessage .sunk-card{background:linear-gradient(180deg,#123e5c,#08283e);color:#fff;border:2px solid #35b8ff;border-radius:20px;padding:22px 28px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.5);font-weight:800}#sunkMessage .sunk-title{font-size:22px;margin-bottom:8px}#sunkMessage .sunk-name{font-size:18px;color:#9fe0ff}`;
+    document.head.appendChild(style);
+  }
+  box.querySelector(".sunk-name").textContent=shipName+" — ALVO DESTRUÍDO";
+  box.style.display="flex";
+  clearTimeout(window.__sunkMessageTimer);
+  window.__sunkMessageTimer=setTimeout(()=>box.style.display="none",1800);
+}
+
 function handleEnemyShot(i){
   if(gameOver || enemy.shots.has(i)) return;
 
@@ -457,7 +493,7 @@ function handleEnemyShot(i){
 
       playSound("afundado");
       renderBattle();
-      alert(`🚢 ${target.name} AFUNDADO!`);
+      showSunkMessage(target.name);
     }else{
       playSound("acerto");
       renderBattle();
