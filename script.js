@@ -20,9 +20,9 @@ let previewStart = null;
 
 /* SONS — arquivos WAV locais, com fallback Web Audio. */
 const SOUND_FILES = {
-  agua: "sons/agua.wav",
-  acerto: "sons/acerto.wav",
-  afundado: "sons/afundado.wav"
+  agua: "sons/agua_v2.wav",
+  acerto: "sons/acerto_v2.wav",
+  afundado: "sons/afundado_v2.wav"
 };
 
 let audioCtx = null;
