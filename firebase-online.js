@@ -137,13 +137,23 @@
   }
   // Abre a tela de posicionamento sem apagar uma frota que já foi montada.
   function showOnlineSetup(){
-    if(!player || !Array.isArray(player.ships) || player.ships.length === 0){
-      resetForOnlineSetup();
-      return;
+    // IMPORTANTE: a tela JOGAR ONLINE tem id "bluetooth" e não faz parte
+    // da lista de telas do show() original. Por isso ela podia continuar
+    // ativa por baixo/acima da tela de posicionamento, principalmente no P1.
+    // Aqui garantimos que SOMENTE a tela setup fique ativa.
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    const setup = document.getElementById('setup');
+    if(!setup) return;
+    setup.classList.add('active');
+
+    // Só inicializa a frota se ainda não houver uma. Nunca apagar uma frota
+    // que o jogador já tenha colocado.
+    if(!player || !Array.isArray(player.ships)){
+      player = {ships:[],shots:new Set()};
     }
+    if(!Array.isArray(player.shots)) player.shots = new Set();
     renderFleet();
     renderSetup();
-    show('setup');
     setOnlineStatus('Posicione sua frota');
   }
 
@@ -187,8 +197,8 @@
 
     if(room.status === 'waiting'){
       if(room.player2){
-        // Quando o segundo jogador entra, os DOIS celulares devem ir para
-        // a tela de posicionamento. Nunca apagar uma frota já montada.
+        // Assim que o segundo celular entra, o CRIADOR também deve sair da
+        // tela JOGAR ONLINE e ir para o posicionamento.
         showOnlineSetup();
         setBtStatus('PARTIDA ' + roomCode + ' • segundo jogador conectado. Posicione sua frota.');
       }else if(role === 'p1'){
