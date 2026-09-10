@@ -287,6 +287,8 @@
         return;
       }
       try { renderOnlineBattle(); } catch(e) { console.error(e); }
+      // Atualiza a indicação da vez em ambos os celulares a cada mudança.
+      setOnlineStatus(room.turn === role ? 'Sua vez' : 'Vez do adversário');
       // IMPORTANTE: cada alteração no Firebase precisa processar também
       // o disparo recebido ou o resultado do nosso próprio disparo.
       // Sem isso o tiro é gravado, mas nunca é resolvido no outro celular.
@@ -401,7 +403,9 @@
       update.winner = move.by;
       update.turn = move.by;
     }else{
-      update.turn = move.by;
+      // Depois que o adversário recebeu nosso tiro, a vez passa para
+      // quem foi atingido (o jogador desta função).
+      update.turn = role;
     }
     await roomRef.update(update);
     renderOnlineBattle();
