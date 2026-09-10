@@ -5,8 +5,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Batalha Naval</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Tela de abertura */
+    #splashScreen{
+      position:fixed;
+      inset:0;
+      z-index:99999;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      text-align:center;
+      background:linear-gradient(160deg,#061722 0%,#0b3048 55%,#062238 100%);
+      color:#fff;
+      transition:opacity .6s ease, visibility .6s ease;
+      cursor:pointer;
+      padding:24px;
+      box-sizing:border-box;
+    }
+    #splashScreen.hide{
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+    }
+    .splash-anchor{
+      font-size:78px;
+      line-height:1;
+      margin-bottom:18px;
+      filter:drop-shadow(0 5px 10px rgba(0,0,0,.35));
+      animation:splashFloat 2s ease-in-out infinite;
+    }
+    .splash-title{
+      margin:0;
+      font-size:clamp(34px,10vw,58px);
+      font-weight:900;
+      letter-spacing:2px;
+      color:#62c9ff;
+      text-shadow:0 3px 12px rgba(0,0,0,.35);
+    }
+    .splash-line{
+      width:120px;
+      height:3px;
+      margin:18px 0;
+      border-radius:5px;
+      background:#62c9ff;
+      opacity:.8;
+    }
+    .splash-author{
+      margin:0;
+      font-size:20px;
+      font-weight:700;
+      color:#fff;
+    }
+    .splash-subtitle{
+      margin:9px 0 0;
+      font-size:14px;
+      color:#b9d9e8;
+    }
+    .splash-touch{
+      margin-top:42px;
+      padding:12px 22px;
+      border:1px solid rgba(98,201,255,.45);
+      border-radius:30px;
+      font-size:14px;
+      color:#cceeff;
+      background:rgba(255,255,255,.06);
+      animation:splashPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes splashFloat{
+      0%,100%{transform:translateY(0)}
+      50%{transform:translateY(-7px)}
+    }
+    @keyframes splashPulse{
+      0%,100%{opacity:.55}
+      50%{opacity:1}
+    }
+  </style>
 </head>
 <body>
+  <div id="splashScreen" aria-label="Tela de abertura">
+    <div class="splash-anchor">⚓</div>
+    <h1 class="splash-title">BATALHA NAVAL</h1>
+    <div class="splash-line"></div>
+    <p class="splash-author">Produzido por Elienai Bitencourt</p>
+    <p class="splash-subtitle">Combate naval estratégico</p>
+    <div class="splash-touch">Toque para continuar</div>
+  </div>
+
   <main class="app">
     <section id="home" class="screen active">
       <div class="logo">⚓</div>
@@ -64,6 +149,24 @@
       <button id="btnBackHelp" class="secondary">VOLTAR</button>
     </section>
   </main>
+
   <script src="script.js"></script>
+  <script>
+    // A tela de abertura permanece por 2,5 segundos ou até o jogador tocar.
+    (function(){
+      const splash=document.getElementById('splashScreen');
+      if(!splash) return;
+      let closed=false;
+      function closeSplash(){
+        if(closed) return;
+        closed=true;
+        splash.classList.add('hide');
+        setTimeout(()=>splash.remove(),650);
+      }
+      splash.addEventListener('click',closeSplash,{passive:true});
+      splash.addEventListener('touchend',closeSplash,{passive:true});
+      setTimeout(closeSplash,2500);
+    })();
+  </script>
 </body>
 </html>
