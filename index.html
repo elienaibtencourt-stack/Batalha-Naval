@@ -6,81 +6,26 @@
   <title>Batalha Naval</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    /* Tela de abertura */
-    #splashScreen{
-      position:fixed;
-      inset:0;
-      z-index:99999;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      flex-direction:column;
-      text-align:center;
-      background:linear-gradient(160deg,#061722 0%,#0b3048 55%,#062238 100%);
-      color:#fff;
-      transition:opacity .6s ease, visibility .6s ease;
-      cursor:pointer;
-      padding:24px;
-      box-sizing:border-box;
-    }
-    #splashScreen.hide{
-      opacity:0;
-      visibility:hidden;
-      pointer-events:none;
-    }
-    .splash-anchor{
-      font-size:78px;
-      line-height:1;
-      margin-bottom:18px;
-      filter:drop-shadow(0 5px 10px rgba(0,0,0,.35));
-      animation:splashFloat 2s ease-in-out infinite;
-    }
-    .splash-title{
-      margin:0;
-      font-size:clamp(34px,10vw,58px);
-      font-weight:900;
-      letter-spacing:2px;
-      color:#62c9ff;
-      text-shadow:0 3px 12px rgba(0,0,0,.35);
-    }
-    .splash-line{
-      width:120px;
-      height:3px;
-      margin:18px 0;
-      border-radius:5px;
-      background:#62c9ff;
-      opacity:.8;
-    }
-    .splash-author{
-      margin:0;
-      font-size:20px;
-      font-weight:700;
-      color:#fff;
-    }
-    .splash-subtitle{
-      margin:9px 0 0;
-      font-size:14px;
-      color:#b9d9e8;
-    }
-    .splash-touch{
-      margin-top:42px;
-      padding:12px 22px;
-      border:1px solid rgba(98,201,255,.45);
-      border-radius:30px;
-      font-size:14px;
-      color:#cceeff;
-      background:rgba(255,255,255,.06);
-      animation:splashPulse 1.8s ease-in-out infinite;
-    }
-    @keyframes splashFloat{
-      0%,100%{transform:translateY(0)}
-      50%{transform:translateY(-7px)}
-    }
-    @keyframes splashPulse{
-      0%,100%{opacity:.55}
-      50%{opacity:1}
-    }
+    /* Tela de abertura — 3,5 segundos */
+    #splashScreen{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;background:linear-gradient(160deg,#061722 0%,#0b3048 55%,#062238 100%);color:#fff;transition:opacity .6s ease,visibility .6s ease;cursor:pointer;padding:24px;box-sizing:border-box}
+    #splashScreen.hide{opacity:0;visibility:hidden;pointer-events:none}
+    .splash-anchor{font-size:78px;line-height:1;margin-bottom:18px;filter:drop-shadow(0 5px 10px rgba(0,0,0,.35));animation:splashFloat 2s ease-in-out infinite}
+    .splash-title{margin:0;font-size:clamp(34px,10vw,58px);font-weight:900;letter-spacing:2px;color:#62c9ff;text-shadow:0 3px 12px rgba(0,0,0,.35)}
+    .splash-line{width:120px;height:3px;margin:18px 0;border-radius:5px;background:#62c9ff;opacity:.8}
+    .splash-author{margin:0;font-size:20px;font-weight:700;color:#fff}.splash-subtitle{margin:9px 0 0;font-size:14px;color:#b9d9e8}
+    .splash-touch{margin-top:42px;padding:12px 22px;border:1px solid rgba(98,201,255,.45);border-radius:30px;font-size:14px;color:#cceeff;background:rgba(255,255,255,.06);animation:splashPulse 1.8s ease-in-out infinite}
+    @keyframes splashFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+    @keyframes splashPulse{0%,100%{opacity:.55}50%{opacity:1}}
+
+    #bluetooth .bt-box{width:min(92%,520px);margin:18px auto;padding:22px;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid rgba(80,180,255,.25);box-sizing:border-box;text-align:center}
+    #bluetooth .bt-icon{font-size:56px;margin-bottom:8px}
+    #bluetooth .bt-status{margin:14px 0;padding:12px;border-radius:12px;background:rgba(0,0,0,.2);font-weight:600;line-height:1.4}
+    #bluetooth .bt-actions{display:grid;gap:12px;margin-top:16px}
+    #bluetooth .bt-note{font-size:.9rem;opacity:.8;line-height:1.45}
   </style>
+  <!-- Firebase Realtime Database via CDN -->
+  <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-database-compat.js"></script>
 </head>
 <body>
   <div id="splashScreen" aria-label="Tela de abertura">
@@ -92,15 +37,6 @@
     <div class="splash-touch">Toque para continuar</div>
   </div>
 
-
-<style>
-#bluetooth .bt-box{width:min(92%,520px);margin:18px auto;padding:22px;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid rgba(80,180,255,.25);box-sizing:border-box;text-align:center}
-#bluetooth .bt-icon{font-size:56px;margin-bottom:8px}
-#bluetooth .bt-status{margin:14px 0;padding:12px;border-radius:12px;background:rgba(0,0,0,.2);font-weight:600}
-#bluetooth .bt-actions{display:grid;gap:12px;margin-top:16px}
-#bluetooth .bt-note{font-size:.9rem;opacity:.8;line-height:1.45}
-</style>
-
   <main class="app">
     <section id="home" class="screen active">
       <div class="logo">⚓</div>
@@ -108,7 +44,7 @@
       <p class="subtitle">Combate naval estratégico</p>
       <button id="btnLocal">⚔️ JOGAR LOCAL</button>
       <button id="btnComputer">🤖 CONTRA COMPUTADOR</button>
-      <button id="btnBluetooth" class="secondary">📡 BLUETOOTH</button>
+      <button id="btnBluetooth" class="secondary">🌐 JOGAR ONLINE</button>
       <button id="btnHelp" class="secondary">❓ COMO JOGAR</button>
     </section>
 
@@ -126,41 +62,29 @@
 
     <section id="battle" class="screen">
       <div class="topbar">
-        <div>
-          <h2>⚓ BATALHA</h2>
-          <span id="turnLabel">Sua vez</span>
-        </div>
+        <div><h2>⚓ BATALHA</h2><span id="turnLabel">Sua vez</span></div>
         <div id="statusLabel" class="status">Prepare-se!</div>
       </div>
-
       <div class="boards-wrap">
-        <div>
-          <h3>🎯 ATAQUE</h3>
-          <div id="enemyBoard" class="board"></div>
-        </div>
-        <div>
-          <h3>🛡️ SUA FROTA</h3>
-          <div id="playerBoard" class="board small"></div>
-        </div>
+        <div><h3>🎯 ATAQUE</h3><div id="enemyBoard" class="board"></div></div>
+        <div><h3>🛡️ SUA FROTA</h3><div id="playerBoard" class="board small"></div></div>
       </div>
-
       <button id="btnRestart">🔄 NOVA PARTIDA</button>
     </section>
 
-
     <section id="bluetooth" class="screen">
-      <h2>📡 JOGAR POR BLUETOOTH</h2>
+      <h2>🌐 JOGAR ONLINE</h2>
       <div class="bt-box">
-        <div class="bt-icon">🔵</div>
-        <h3>Conectar dois celulares</h3>
-        <p>Primeiro vamos preparar a conexão entre os dois jogadores.</p>
-        <div id="btStatus" class="bt-status">Aguardando escolha...</div>
+        <div class="bt-icon">🌐</div>
+        <h3>Conectar dois celulares pela internet</h3>
+        <p>Um celular cria a partida e recebe um código. O outro celular usa esse código para entrar.</p>
+        <div id="btStatus" class="bt-status">Escolha criar ou entrar em uma partida.</div>
         <div class="bt-actions">
-          <button id="btnBtCreate">📡 CRIAR PARTIDA</button>
+          <button id="btnBtCreate">🌐 CRIAR PARTIDA</button>
           <button id="btnBtJoin">🔗 ENTRAR NA PARTIDA</button>
           <button id="btnBtBack" class="secondary">VOLTAR</button>
         </div>
-        <p class="bt-note">Nesta primeira etapa estamos preparando a tela. A conexão Bluetooth será implementada no próximo passo.</p>
+        <p class="bt-note">A conexão usa o Firebase Realtime Database para sincronizar os dois jogadores em tempo real.</p>
       </div>
     </section>
 
@@ -169,7 +93,7 @@
       <div class="help-box">
         <p>1. Posicione os cinco navios no tabuleiro.</p>
         <p>2. Escolha uma casa no tabuleiro inimigo para disparar.</p>
-        <p>3. 🎯 acerto, 🌊 água e 💥 navio afundado.</p>
+        <p>3. 💥 acerto, 💦 água e ☠️ navio afundado.</p>
         <p>4. Destrua toda a frota adversária para vencer.</p>
       </div>
       <button id="btnBackHelp" class="secondary">VOLTAR</button>
@@ -177,51 +101,16 @@
   </main>
 
   <script src="script.js"></script>
+  <script src="firebase-online.js"></script>
   <script>
-    // A tela de abertura permanece por 3,5 segundos ou até o jogador tocar.
     (function(){
       const splash=document.getElementById('splashScreen');
       if(!splash) return;
       let closed=false;
-      function closeSplash(){
-        if(closed) return;
-        closed=true;
-        splash.classList.add('hide');
-        setTimeout(()=>splash.remove(),650);
-      }
+      function closeSplash(){if(closed)return;closed=true;splash.classList.add('hide');setTimeout(()=>splash.remove(),650)}
       splash.addEventListener('click',closeSplash,{passive:true});
       splash.addEventListener('touchend',closeSplash,{passive:true});
       setTimeout(closeSplash,3500);
-    })();
-  </script>
-  <script>
-    // Etapa 1: tela de preparação do modo Bluetooth.
-    (function(){
-      const bt = document.getElementById('bluetooth');
-      const home = document.getElementById('home');
-      const btn = document.getElementById('btnBluetooth');
-      const status = document.getElementById('btStatus');
-      if(!bt || !home || !btn) return;
-      const screens = Array.from(document.querySelectorAll('.screen'));
-      function showBluetooth(){
-        screens.forEach(el=>el.classList.remove('active'));
-        bt.classList.add('active');
-        status.textContent='Aguardando escolha...';
-      }
-      btn.onclick = function(e){
-        if(e) e.preventDefault();
-        showBluetooth();
-      };
-      document.getElementById('btnBtCreate').onclick=function(){
-        status.textContent='Partida criada. Aguardando o outro jogador...';
-      };
-      document.getElementById('btnBtJoin').onclick=function(){
-        status.textContent='Pronto para procurar a partida do outro jogador.';
-      };
-      document.getElementById('btnBtBack').onclick=function(){
-        screens.forEach(el=>el.classList.remove('active'));
-        home.classList.add('active');
-      };
     })();
   </script>
 </body>
