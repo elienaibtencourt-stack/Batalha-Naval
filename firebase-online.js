@@ -132,28 +132,12 @@
     gameOver = false;
     renderFleet();
     renderSetup();
-    show('setup');
-    setOnlineStatus('Posicione sua frota');
-  }
-  // Abre a tela de posicionamento sem apagar uma frota que já foi montada.
-  function showOnlineSetup(){
-    // IMPORTANTE: a tela JOGAR ONLINE tem id "bluetooth" e não faz parte
-    // da lista de telas do show() original. Por isso ela podia continuar
-    // ativa por baixo/acima da tela de posicionamento, principalmente no P1.
-    // Aqui garantimos que SOMENTE a tela setup fique ativa.
+    // IMPORTANTE: a tela ONLINE (#bluetooth) também tem a classe .screen.
+    // A função show() antiga não a removia, deixando ONLINE visível por cima
+    // da tela de preparação. No modo online, escondemos todas as telas
+    // explicitamente e mostramos somente SETUP.
     document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-    const setup = document.getElementById('setup');
-    if(!setup) return;
-    setup.classList.add('active');
-
-    // Só inicializa a frota se ainda não houver uma. Nunca apagar uma frota
-    // que o jogador já tenha colocado.
-    if(!player || !Array.isArray(player.ships)){
-      player = {ships:[],shots:new Set()};
-    }
-    if(!Array.isArray(player.shots)) player.shots = new Set();
-    renderFleet();
-    renderSetup();
+    document.getElementById('setup')?.classList.add('active');
     setOnlineStatus('Posicione sua frota');
   }
 
@@ -195,20 +179,29 @@
     }
 
 
-    if(room.status === 'waiting'){
-      if(room.player2){
-        // Assim que o segundo celular entra, o CRIADOR também deve sair da
-        // tela JOGAR ONLINE e ir para o posicionamento.
-        showOnlineSetup();
-        setBtStatus('PARTIDA ' + roomCode + ' • segundo jogador conectado. Posicione sua frota.');
-      }else if(role === 'p1'){
-        setBtStatus('PARTIDA ' + roomCode + ' • código para o outro celular: ' + roomCode);
-      }
+    // IMPORTANTE: verificar primeiro se os dois jogadores estão prontos.
+    // No código anterior o bloco "waiting" fazia return antes desta verificação,
+    // impedindo a partida de mudar para "playing".
+    if(room.player1?.ready && room.player2?.ready && room.status !== 'playing' && room.status !== 'finished'){
+      roomRef.update({status:'playing', turn: room.turn || 'p1'}).catch(console.error);
       return;
     }
 
-    if(room.player1?.ready && room.player2?.ready && room.status !== 'playing'){
-      roomRef.update({status:'playing', turn: room.turn || 'p1'}).catch(console.error);
+    if(room.status === 'waiting'){
+      if(room.player2){
+        // Os dois celulares devem permanecer/entrar na tela de posicionamento.
+        // Não apagar uma frota já montada.
+        if(document.getElementById('setup')?.classList.contains('active')){
+          renderFleet();
+          renderSetup();
+        }else{
+          showOnlineSetup();
+        }
+        setBtStatus('PARTIDA ' + roomCode + ' • segundo jogador conectado. Posicione sua frota.');
+        setOnlineStatus(allShipsPlaced() ? 'Frota pronta • aguardando o adversário' : 'Posicione sua frota');
+      }else if(role === 'p1'){
+        setBtStatus('PARTIDA ' + roomCode + ' • código para o outro celular: ' + roomCode);
+      }
       return;
     }
 
