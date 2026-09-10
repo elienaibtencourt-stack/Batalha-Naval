@@ -125,6 +125,17 @@
     }
   }
 
+  function bindOnlineStartButton(){
+    const b = document.getElementById('btnStart');
+    if(!b) return;
+    b.onclick = function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      if(gameMode === 'online') startOnlineBattle();
+      else if(typeof startBattle === 'function') startBattle();
+    };
+  }
+
   function resetForOnlineSetup(){
     player = {ships:[],shots:new Set()};
     enemy = {ships:[],shots:new Set()};
@@ -140,6 +151,7 @@
     // explicitamente e mostramos somente SETUP.
     document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
     document.getElementById('setup')?.classList.add('active');
+    bindOnlineStartButton();
     setOnlineStatus('Posicione sua frota');
   }
 
@@ -201,7 +213,17 @@
     // toca em INICIAR BATALHA.
     if(room.player1?.ready && room.player2?.ready && room.status !== 'playing' && room.status !== 'finished'){
       onlineReady = true;
-      roomRef.update({status:'playing', turn: room.turn || 'p1'}).catch(console.error);
+      const turn = room.turn || 'p1';
+      // Muda a sala e, imediatamente após a confirmação do Firebase,
+      // abre a tela de batalha neste celular também. Assim nenhum dos
+      // aparelhos depende de um novo evento/recarregamento para iniciar.
+      roomRef.update({status:'playing', turn:turn}).then(()=>{
+        handleRoomUpdate({...room, status:'playing', turn:turn});
+      }).catch(err=>{
+        console.error(err);
+        setOnlineStatus('Erro ao iniciar a batalha online.');
+        setBtStatus('Erro ao iniciar a batalha: ' + (err.message || err));
+      });
       return;
     }
 
@@ -386,6 +408,8 @@
         const turn = room.turn || 'p1';
         await roomRef.update({status:'playing', turn:turn});
         handleRoomUpdate({...room, status:'playing', turn:turn});
+      }else{
+        setBtStatus('Frota confirmada! Aguardando o outro jogador confirmar.');
       }
     }catch(err){
       console.error(err);
@@ -425,21 +449,9 @@
     if(join) join.onclick = joinRoom;
     if(back) back.onclick = function(){ screens.forEach(s=>s.classList.remove('active')); home.classList.add('active'); };
 
-    const oldStart = document.getElementById('btnStart');
-    if(oldStart){
-      // Substitui completamente o handler do script.js para o modo online.
-      // O botão precisa funcionar por toque no Android/WebView também.
-      oldStart.onclick = null;
-      oldStart.addEventListener('click', function(e){
-        e.preventDefault();
-        e.stopPropagation();
-        if(gameMode === 'online') {
-          startOnlineBattle();
-        } else {
-          startBattle();
-        }
-      });
-    }
+    // O botão é religado aqui e também sempre que a tela de preparação
+    // online é aberta, garantindo o funcionamento nos dois celulares.
+    bindOnlineStartButton();
 
     const restart = document.getElementById('btnRestart');
     if(restart){
