@@ -17,6 +17,11 @@
     @keyframes splashFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
     @keyframes splashPulse{0%,100%{opacity:.55}50%{opacity:1}}
 
+
+    /* Controle da música da tela inicial */
+    .sound-toggle{width:auto!important;min-width:180px;margin:16px auto 0!important;padding:10px 18px!important;font-size:14px!important;background:rgba(255,255,255,.08)!important;border:1px solid rgba(98,201,255,.35)!important;color:#dff5ff!important;box-shadow:none!important}
+    .sound-toggle:active{transform:scale(.98)}
+
     #bluetooth .bt-box{width:min(92%,520px);margin:18px auto;padding:22px;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid rgba(80,180,255,.25);box-sizing:border-box;text-align:center}
     #bluetooth .bt-icon{font-size:56px;margin-bottom:8px}
     #bluetooth .bt-status{margin:14px 0;padding:12px;border-radius:12px;background:rgba(0,0,0,.2);font-weight:600;line-height:1.4}
@@ -46,6 +51,7 @@
       <button id="btnComputer">🤖 CONTRA COMPUTADOR</button>
       <button id="btnBluetooth" class="secondary">🌐 JOGAR ONLINE</button>
       <button id="btnHelp" class="secondary">❓ COMO JOGAR</button>
+      <button id="btnSound" class="sound-toggle" type="button">🔊 SOM: LIGADO</button>
     </section>
 
     <section id="setup" class="screen">
@@ -105,12 +111,68 @@
   <script>
     (function(){
       const splash=document.getElementById('splashScreen');
-      if(!splash) return;
+      const btnSound=document.getElementById('btnSound');
+      const audio=new Audio('sons/musica_abertura.mp3');
+      audio.loop=true;
+      audio.preload='auto';
+      audio.volume=0.28;
+      const STORAGE_KEY='batalha_naval_som';
+      let soundOn=localStorage.getItem(STORAGE_KEY)!=='off';
       let closed=false;
-      function closeSplash(){if(closed)return;closed=true;splash.classList.add('hide');setTimeout(()=>splash.remove(),650)}
-      splash.addEventListener('click',closeSplash,{passive:true});
-      splash.addEventListener('touchend',closeSplash,{passive:true});
-      setTimeout(closeSplash,3500);
+
+      function updateSoundButton(){
+        if(!btnSound) return;
+        btnSound.textContent=soundOn?'🔊 SOM: LIGADO':'🔇 SOM: DESLIGADO';
+      }
+      function startMusic(){
+        if(!soundOn) return;
+        audio.play().catch(()=>{});
+      }
+      function pauseMusic(){
+        audio.pause();
+      }
+      function closeSplash(){
+        if(closed)return;
+        closed=true;
+        splash.classList.add('hide');
+        startMusic();
+        setTimeout(()=>splash.remove(),650);
+      }
+
+      updateSoundButton();
+      if(btnSound){
+        btnSound.addEventListener('click',function(e){
+          e.stopPropagation();
+          soundOn=!soundOn;
+          localStorage.setItem(STORAGE_KEY,soundOn?'on':'off');
+          updateSoundButton();
+          if(soundOn) startMusic(); else pauseMusic();
+        });
+      }
+
+      if(splash){
+        splash.addEventListener('click',closeSplash,{passive:true});
+        setTimeout(closeSplash,3500);
+      }
+
+      // A música fica restrita à tela inicial.
+      const home=document.getElementById('home');
+      const app=document.querySelector('main.app');
+      if(app && home){
+        const observer=new MutationObserver(()=>{
+          const homeActive=home.classList.contains('active');
+          if(homeActive) startMusic(); else pauseMusic();
+        });
+        observer.observe(app,{subtree:true,attributes:true,attributeFilter:['class']});
+      }
+
+      // Ao voltar para a tela inicial por um botão, tenta retomar dentro do gesto do usuário.
+      document.addEventListener('click',function(e){
+        const id=e.target.closest('button')?.id;
+        if(['btnRestart','btnBackSetup','btnBackHelp'].includes(id) && soundOn){
+          startMusic();
+        }
+      },true);
     })();
   </script>
 </body>
