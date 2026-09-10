@@ -235,8 +235,99 @@
     }
   }
 
+  function updateOnlineTurnLabel(room){
+    const el=document.getElementById('turnLabel');
+    if(!el) return;
+    if(room?.status==='finished'){
+      el.textContent = room.winner === role ? '🏆 VOCÊ VENCEU' : '💀 VOCÊ PERDEU';
+    }else if(room?.turn === role){
+      el.textContent='Sua vez';
+    }else{
+      el.textContent='Vez do adversário';
+    }
+  }
+
+  function syncOnlineState(room){
+    const me = room?.[myPath()] || {};
+    const opp = room?.[opponentPath()] || {};
+
+    // O Firebase é a fonte oficial do estado dos dois tabuleiros.
+    if(Array.isArray(me.ships)) player.ships=cloneShips(me.ships);
+    if(Array.isArray(opp.ships)) enemy.ships=cloneShips(opp.ships);
+
+    window.__onlineRoomShots = me.shots || {};
+    window.__onlineMyTurn = room?.turn === role;
+
+    // Garante que os tiros que EU fiz apareçam no meu ATAQUE,
+    // mesmo depois de recarregar a página ou receber um novo evento.
+    if(!Array.isArray(enemy.ships)) enemy.ships=[];
+    Object.keys(window.__onlineRoomShots).forEach(k=>{
+      const idx=Number(k), shot=window.__onlineRoomShots[k];
+      if(!shot) return;
+      if(shot.result==='miss'){
+        enemy.ships[idx]={miss:true};
+      }else if(shot.result==='hit' || shot.result==='sunk'){
+        const cell=enemy.ships[idx] || {};
+        cell.hit=true;
+        if(shot.result==='sunk'){
+          enemy.ships.forEach(v=>{if(v?.shipIndex===shot.shipIndex)v.sunk=true;});
+        }
+        enemy.ships[idx]=cell;
+      }
+    });
+  }
+
+  function handleRoomUpdate(room){
+    if(!room || !role) return;
+
+    // Quando os dois confirmarem, inicia automaticamente.
+    if(room.player1?.ready && room.player2?.ready && room.status==='waiting'){
+      const turn=room.turn || 'p1';
+      roomRef.update({status:'playing',turn:turn}).catch(err=>console.error(err));
+      return;
+    }
+
+    if(room.status==='finished'){
+      onlineReady=true;
+      gameOver=true;
+      syncOnlineState(room);
+      updateOnlineTurnLabel(room);
+      document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
+      document.getElementById('battle')?.classList.add('active');
+      try{renderOnlineBattle();}catch(err){console.error('Erro ao renderizar resultado:',err);}
+      setOnlineStatus(room.winner===role ? '🏆 VOCÊ VENCEU!' : '💀 SUA FROTA FOI DESTRUÍDA');
+      return;
+    }
+
+    if(room.status==='playing'){
+      onlineReady=true;
+      syncOnlineState(room);
+      updateOnlineTurnLabel(room);
+      const battle=document.getElementById('battle');
+      if(!battle?.classList.contains('active')){
+        enterOnlineBattle(room);
+      }else{
+        try{renderOnlineBattle();}catch(err){console.error('Erro ao atualizar tabuleiro:',err);}
+        setOnlineStatus(room.turn===role ? 'Sua vez' : 'Vez do adversário');
+        processMove(room);
+      }
+      return;
+    }
+
+    // Esperando o segundo jogador: mantém o criador na tela ONLINE.
+    if(room.status==='waiting'){
+      onlineReady=false;
+      const setup=document.getElementById('setup');
+      const battle=document.getElementById('battle');
+      if(!battle?.classList.contains('active') && !setup?.classList.contains('active')){
+        document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
+        document.getElementById('bluetooth')?.classList.add('active');
+      }
+      setBtStatus(room.player2 ? 'Segundo jogador conectado • ambos podem posicionar a frota.' : 'PARTIDA CRIADA • CÓDIGO: '+roomCode+' • Aguardando o outro jogador...');
+    }
+  }
+
   function renderOnlineBattle(){
-    const ownShots = {};
     const enemyView = (enemy && Array.isArray(enemy.ships)) ? cloneShips(enemy.ships) : [];
     const myShots = (window.__onlineRoomShots || {});
     Object.keys(myShots).forEach(k=>{
@@ -322,6 +413,7 @@
     }
     await roomRef.update(update);
     window.__onlineMyTurn = !lost;
+    updateOnlineTurnLabel({status:lost?'finished':'playing', turn:lost?move.by:role, winner:lost?move.by:null});
     window.__onlineRoomShots = window.__onlineRoomShots || {};
     try{ renderOnlineBattle(); }catch(e){ console.error(e); }
     if(lost) setOnlineStatus('💀 Sua frota foi destruída');
@@ -343,6 +435,7 @@
       showSunkMessage('🚢 ' + (move.shipName || 'Navio') + ' — ALVO DESTRUÍDO');
     }else playSound('acerto');
     window.__onlineMyTurn=false;
+    updateOnlineTurnLabel({status:'playing',turn:role=== 'p1' ? 'p2' : 'p1'});
     renderOnlineBattle();
     setOnlineStatus('Vez do adversário');
   }
@@ -361,6 +454,7 @@
     await roomRef.child('move').set(move);
     setOnlineStatus('Disparo enviado • aguardando resultado');
     window.__onlineMyTurn=false;
+    updateOnlineTurnLabel({status:'playing',turn:role==='p1'?'p2':'p1'});
     renderOnlineBattle();
   }
 
