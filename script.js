@@ -18,68 +18,6 @@ let gameOver = false;
    O segundo toque no mesmo lugar confirma. */
 let previewStart = null;
 
-/* SONS — arquivos WAV locais, com fallback Web Audio. */
-const SOUND_FILES = {
-  agua: "sons/agua_v2.wav",
-  acerto: "sons/acerto_v2.wav",
-  afundado: "sons/afundado_v2.wav"
-};
-
-let audioCtx = null;
-const audioCache = {};
-
-function unlockAudio(){
-  try{
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if(!AC) return;
-    if(!audioCtx) audioCtx = new AC();
-    if(audioCtx.state === "suspended") audioCtx.resume();
-  }catch(e){}
-}
-
-function fallbackSound(name){
-  try{
-    unlockAudio();
-    if(!audioCtx) return;
-    const now = audioCtx.currentTime;
-    const notes =
-      name === "agua" ? [[180,.12,0],[110,.20,.06]] :
-      name === "acerto" ? [[520,.10,0],[760,.14,.08]] :
-      [[220,.15,0],[160,.20,.10],[90,.30,.23]];
-    notes.forEach(([freq,dur,delay])=>{
-      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
-      o.type = name === "agua" ? "sine" : name === "acerto" ? "square" : "sawtooth";
-      o.frequency.setValueAtTime(freq,now+delay);
-      g.gain.setValueAtTime(.0001,now+delay);
-      g.gain.exponentialRampToValueAtTime(.18,now+delay+.01);
-      g.gain.exponentialRampToValueAtTime(.0001,now+delay+dur);
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(now+delay); o.stop(now+delay+dur+.02);
-    });
-  }catch(e){}
-}
-
-function playSound(name){
-  unlockAudio();
-  const path = SOUND_FILES[name];
-  if(!path){ fallbackSound(name); return; }
-  if(!audioCache[name]){
-    const a = new Audio(new URL(path, document.baseURI).href);
-    a.preload = "auto";
-    a.volume = 1.0;
-    a.addEventListener("error", ()=>fallbackSound(name), {once:true});
-    audioCache[name] = a;
-  }
-  const a = audioCache[name];
-  try{
-    a.pause();
-    a.currentTime = 0;
-    const p = a.play();
-    if(p && p.catch) p.catch(()=>fallbackSound(name));
-  }catch(e){ fallbackSound(name); }
-}
-
-document.addEventListener("pointerdown",unlockAudio,{once:true,passive:true});
 
 /* IMAGENS DOS NAVIOS — embutidas no próprio script para que o GitHub precise receber apenas este arquivo. */
 const SHIP_IMAGES = {
@@ -151,10 +89,19 @@ function addShipImages(el, grid, revealShips){
     img.src=SHIP_IMAGES[ship.id];
 
     if(vertical){
-      img.style.width=spanH+"px";
-      img.style.height=spanW+"px";
-      img.style.left=(left + (spanW-spanH)/2 + spanH/2 - spanW/2)+"px";
-      img.style.top=(top + (spanH-spanW)/2 + spanW/2 - spanH/2)+"px";
+      // A imagem original é horizontal. Para uma posição vertical,
+      // giramos ao redor do centro do navio e calculamos o deslocamento
+      // para que o resultado ocupe exatamente as mesmas casas.
+      const centerX = left + spanW/2;
+      const centerY = top + spanH/2;
+      // Mantém a proporção horizontal original da imagem antes de girar.
+      // A rotação transforma o retângulo W x H em H x W, ocupando
+      // exatamente as casas verticais do navio.
+      img.style.width=spanW+"px";
+      img.style.height=spanH+"px";
+      img.style.left=(centerX - spanH/2)+"px";
+      img.style.top=(centerY - spanW/2)+"px";
+      img.style.transformOrigin="50% 50%";
       img.style.transform="rotate(90deg)";
     }else{
       img.style.left=left+"px";
@@ -166,6 +113,119 @@ function addShipImages(el, grid, revealShips){
     el.appendChild(img);
   });
 }
+
+
+/* =========================================================
+   SONS DO JOGO — gerados no navegador para não depender
+   de caminho/extensão de arquivos no GitHub Pages.
+   Água, acerto e afundamento são sons diferentes.
+   ========================================================= */
+let audioCtx = null;
+
+function getAudioContext(){
+  if(!audioCtx){
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return null;
+    audioCtx = new Ctx();
+  }
+  if(audioCtx.state === "suspended"){
+    audioCtx.resume().catch(()=>{});
+  }
+  return audioCtx;
+}
+
+function noiseBuffer(ctx, duration){
+  const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate*duration)), ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<data.length;i++){
+    data[i] = (Math.random()*2-1) * (1 - i/data.length);
+  }
+  return buffer;
+}
+
+function playSound(type){
+  const ctx = getAudioContext();
+  if(!ctx) return;
+
+  const now = ctx.currentTime;
+
+  if(type === "agua"){
+    // Splash curto e agudo.
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx,0.22);
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(1700,now);
+    filter.Q.setValueAtTime(0.8,now);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001,now);
+    gain.gain.exponentialRampToValueAtTime(0.55,now+0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.22);
+    src.connect(filter).connect(gain).connect(ctx.destination);
+    src.start(now);
+    src.stop(now+0.24);
+    return;
+  }
+
+  if(type === "acerto"){
+    // Impacto/tiro: dois tons curtos + ruído de impacto.
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(170,now);
+    osc.frequency.exponentialRampToValueAtTime(70,now+0.18);
+    gain.gain.setValueAtTime(0.0001,now);
+    gain.gain.exponentialRampToValueAtTime(0.75,now+0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.20);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now+0.21);
+
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx,0.11);
+    const filter = ctx.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.setValueAtTime(900,now);
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001,now);
+    ng.gain.exponentialRampToValueAtTime(0.38,now+0.005);
+    ng.gain.exponentialRampToValueAtTime(0.0001,now+0.11);
+    src.connect(filter).connect(ng).connect(ctx.destination);
+    src.start(now);
+    src.stop(now+0.12);
+    return;
+  }
+
+  if(type === "afundado"){
+    // Explosão grave + queda de sirene, bem diferente dos anteriores.
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(95,now);
+    osc.frequency.exponentialRampToValueAtTime(38,now+0.55);
+    gain.gain.setValueAtTime(0.0001,now);
+    gain.gain.exponentialRampToValueAtTime(0.9,now+0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.60);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now+0.62);
+
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(520,now+0.02);
+    osc2.frequency.exponentialRampToValueAtTime(130,now+0.55);
+    gain2.gain.setValueAtTime(0.0001,now);
+    gain2.gain.exponentialRampToValueAtTime(0.42,now+0.03);
+    gain2.gain.exponentialRampToValueAtTime(0.0001,now+0.60);
+    osc2.connect(gain2).connect(ctx.destination);
+    osc2.start(now);
+    osc2.stop(now+0.62);
+  }
+}
+
+// Libera o áudio no primeiro toque do jogador.
+document.addEventListener("pointerdown",()=>{ getAudioContext(); },{once:true});
 
 const $ = id => document.getElementById(id);
 const screens = ["home","setup","battle","help"];
@@ -219,7 +279,6 @@ function renderFleet(){
     b.disabled = placed;
 
     b.onclick = () => {
-      unlockAudio();
       selectedShip = i;
       previewStart = null;
       renderFleet();
@@ -341,18 +400,11 @@ function renderSetup(){
     if(v) grid[i] = v;
   });
 
-  const preview = getPreview();
-  if(preview.length && previewIsValid()){
-    preview.forEach(i=>{
-      if(grid[i] === null) grid[i] = {shipIndex:selectedShip, previewShip:true};
-    });
-  }
-
   renderBoard(
     $("setupBoard"),
     grid,
     false,
-    preview,
+    getPreview(),
     true
   );
 
@@ -370,7 +422,6 @@ function renderSetup(){
    2º toque no mesmo quadrado = confirma
    outro toque = muda a posição da prévia */
 $("setupBoard").addEventListener("click",e=>{
-  unlockAudio();
   const cell = e.target.closest(".cell");
   if(!cell) return;
 
@@ -411,7 +462,6 @@ $("setupBoard").addEventListener("click",e=>{
 });
 
 $("btnRotate").onclick = ()=>{
-  unlockAudio();
   horizontal = !horizontal;
 
   if(previewStart !== null && !previewIsValid()){
@@ -486,23 +536,6 @@ function renderBattle(){
   );
 }
 
-function showSunkMessage(message){
-  let box=document.getElementById("sunkMessage");
-  if(!box){
-    box=document.createElement("div");
-    box.id="sunkMessage";
-    box.innerHTML='<div class="sunk-card"><div class="sunk-title">🚢 NAVIO INIMIGO AFUNDADO!</div><div class="sunk-name"></div></div>';
-    document.body.appendChild(box);
-    const style=document.createElement("style");
-    style.textContent=`#sunkMessage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9999;background:rgba(0,0,0,.55);padding:20px}.sunk-card{background:#123b54;color:white;border:3px solid #4fc3f7;border-radius:20px;padding:25px 22px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.45);max-width:90%}.sunk-title{font-size:24px;font-weight:900}.sunk-name{font-size:18px;margin-top:12px}`;
-    document.head.appendChild(style);
-  }
-  box.querySelector(".sunk-name").textContent=message.replace("🚢 ","");
-  box.style.display="flex";
-  clearTimeout(window.__sunkTimer);
-  window.__sunkTimer=setTimeout(()=>box.style.display="none",1800);
-}
-
 function handleEnemyShot(i){
   if(gameOver || enemy.shots.has(i)) return;
 
@@ -524,7 +557,13 @@ function handleEnemyShot(i){
 
       playSound("afundado");
       renderBattle();
-      showSunkMessage(`🚢 ${target.name} — ALVO DESTRUÍDO`);
+
+      if(allSunk(enemy)){
+        setTimeout(()=>finish("🏆 VOCÊ VENCEU!"),650);
+        return;
+      }
+
+      setTimeout(()=>alert(`🚢 ${target.name} AFUNDOU!`),180);
     }else{
       playSound("acerto");
       renderBattle();
@@ -536,14 +575,13 @@ function handleEnemyShot(i){
   }
 
   if(allSunk(enemy)){
-    finish("🏆 VOCÊ VENCEU!");
+    setTimeout(()=>finish("🏆 VOCÊ VENCEU!"),650);
     return;
   }
 
   if(gameMode === "computer"){
     $("statusLabel").textContent = "Computador pensando...";
     $("turnLabel").textContent = "Vez do computador";
-
     setTimeout(computerTurn,700);
   }else{
     $("statusLabel").textContent = "Aguardando adversário";
@@ -562,33 +600,37 @@ function computerTurn(){
 
   player.shots.add(i);
 
+  let sunk = false;
+
   if(player.ships[i]){
     player.ships[i].hit = true;
-
-    const sunk = checkSunk(player,player.ships[i].shipIndex);
+    sunk = checkSunk(player,player.ships[i].shipIndex);
 
     if(sunk){
-      playSound("afundado");
+      const sunkIndex = player.ships[i].shipIndex;
       player.ships.forEach(v=>{
-        if(v?.shipIndex === player.ships[i].shipIndex){
+        if(v?.shipIndex === sunkIndex){
           v.sunk = true;
         }
       });
+      playSound("afundado");
+    }else{
+      playSound("acerto");
     }
   }else{
     playSound("agua");
     player.ships[i] = {miss:true};
   }
 
-  if(player.ships[i] && player.ships[i].hit && !player.ships[i].sunk){
-    playSound("acerto");
-  }
-
   renderBattle();
 
   if(allSunk(player)){
-    finish("💀 COMPUTADOR VENCEU!");
+    setTimeout(()=>finish("💀 COMPUTADOR VENCEU!"),650);
     return;
+  }
+
+  if(sunk){
+    setTimeout(()=>alert("🚢 SEU NAVIO AFUNDOU!"),180);
   }
 
   $("statusLabel").textContent = "Sua vez";
