@@ -116,6 +116,8 @@
       audio.loop=true;
       audio.preload='auto';
       audio.volume=0.28;
+      audio.setAttribute('playsinline','');
+      let musicStarted=false;
       const STORAGE_KEY='batalha_naval_som';
       let soundOn=localStorage.getItem(STORAGE_KEY)!=='off';
       let closed=false;
@@ -126,7 +128,7 @@
       }
       function startMusic(){
         if(!soundOn) return;
-        audio.play().catch(()=>{});
+        audio.play().then(()=>{ musicStarted=true; }).catch(()=>{});
       }
       function pauseMusic(){
         audio.pause();
@@ -143,6 +145,10 @@
       if(btnSound){
         btnSound.addEventListener('click',function(e){
           e.stopPropagation();
+          if(soundOn && !musicStarted){
+            startMusic();
+            return;
+          }
           soundOn=!soundOn;
           localStorage.setItem(STORAGE_KEY,soundOn?'on':'off');
           updateSoundButton();
@@ -151,7 +157,7 @@
       }
 
       if(splash){
-        splash.addEventListener('click',closeSplash,{passive:true});
+        splash.addEventListener('click',function(){ if(soundOn) startMusic(); closeSplash(); },{passive:true});
         setTimeout(closeSplash,3500);
       }
 
