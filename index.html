@@ -92,6 +92,15 @@
     <div class="splash-touch">Toque para continuar</div>
   </div>
 
+
+<style>
+#bluetooth .bt-box{width:min(92%,520px);margin:18px auto;padding:22px;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid rgba(80,180,255,.25);box-sizing:border-box;text-align:center}
+#bluetooth .bt-icon{font-size:56px;margin-bottom:8px}
+#bluetooth .bt-status{margin:14px 0;padding:12px;border-radius:12px;background:rgba(0,0,0,.2);font-weight:600}
+#bluetooth .bt-actions{display:grid;gap:12px;margin-top:16px}
+#bluetooth .bt-note{font-size:.9rem;opacity:.8;line-height:1.45}
+</style>
+
   <main class="app">
     <section id="home" class="screen active">
       <div class="logo">⚓</div>
@@ -138,6 +147,23 @@
       <button id="btnRestart">🔄 NOVA PARTIDA</button>
     </section>
 
+
+    <section id="bluetooth" class="screen">
+      <h2>📡 JOGAR POR BLUETOOTH</h2>
+      <div class="bt-box">
+        <div class="bt-icon">🔵</div>
+        <h3>Conectar dois celulares</h3>
+        <p>Primeiro vamos preparar a conexão entre os dois jogadores.</p>
+        <div id="btStatus" class="bt-status">Aguardando escolha...</div>
+        <div class="bt-actions">
+          <button id="btnBtCreate">📡 CRIAR PARTIDA</button>
+          <button id="btnBtJoin">🔗 ENTRAR NA PARTIDA</button>
+          <button id="btnBtBack" class="secondary">VOLTAR</button>
+        </div>
+        <p class="bt-note">Nesta primeira etapa estamos preparando a tela. A conexão Bluetooth será implementada no próximo passo.</p>
+      </div>
+    </section>
+
     <section id="help" class="screen">
       <h2>❓ Como jogar</h2>
       <div class="help-box">
@@ -152,7 +178,7 @@
 
   <script src="script.js"></script>
   <script>
-    // A tela de abertura permanece por 2,5 segundos ou até o jogador tocar.
+    // A tela de abertura permanece por 3,5 segundos ou até o jogador tocar.
     (function(){
       const splash=document.getElementById('splashScreen');
       if(!splash) return;
@@ -165,7 +191,37 @@
       }
       splash.addEventListener('click',closeSplash,{passive:true});
       splash.addEventListener('touchend',closeSplash,{passive:true});
-      setTimeout(closeSplash,2500);
+      setTimeout(closeSplash,3500);
+    })();
+  </script>
+  <script>
+    // Etapa 1: tela de preparação do modo Bluetooth.
+    (function(){
+      const bt = document.getElementById('bluetooth');
+      const home = document.getElementById('home');
+      const btn = document.getElementById('btnBluetooth');
+      const status = document.getElementById('btStatus');
+      if(!bt || !home || !btn) return;
+      const screens = Array.from(document.querySelectorAll('.screen'));
+      function showBluetooth(){
+        screens.forEach(el=>el.classList.remove('active'));
+        bt.classList.add('active');
+        status.textContent='Aguardando escolha...';
+      }
+      btn.onclick = function(e){
+        if(e) e.preventDefault();
+        showBluetooth();
+      };
+      document.getElementById('btnBtCreate').onclick=function(){
+        status.textContent='Partida criada. Aguardando o outro jogador...';
+      };
+      document.getElementById('btnBtJoin').onclick=function(){
+        status.textContent='Pronto para procurar a partida do outro jogador.';
+      };
+      document.getElementById('btnBtBack').onclick=function(){
+        screens.forEach(el=>el.classList.remove('active'));
+        home.classList.add('active');
+      };
     })();
   </script>
 </body>
