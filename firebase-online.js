@@ -159,13 +159,22 @@
   }
 
   async function sendReady(){
-    if(!roomRef || !allShipsPlaced()) return false;
+    if(!roomRef) {
+      setBtStatus('ERRO: partida online não está conectada.');
+      return false;
+    }
+    if(!allShipsPlaced()){
+      setBtStatus('Posicione todos os navios antes de iniciar.');
+      return false;
+    }
     const data = {ready:true, ships:cloneShips(player.ships)};
+    setBtStatus('Confirmando sua frota...');
     await roomRef.child(myPath()).update(data);
     onlineReady = true;
     const b = document.getElementById('btnStart');
-    if(b) b.disabled = false;
+    if(b) { b.disabled = true; b.textContent = '✓ FROTA CONFIRMADA'; }
     setOnlineStatus('Frota pronta • aguardando o adversário');
+    setBtStatus('Frota confirmada! Aguardando o outro jogador...');
     return true;
   }
 
@@ -364,13 +373,19 @@
         ships:cloneShips(player.ships)
       });
       setOnlineStatus('Frota pronta • aguardando o adversário');
+      setBtStatus('✓ Frota confirmada! Aguardando o outro jogador...');
+      const info = document.querySelector('#setup .placement-info');
+      if(info) info.textContent = '✓ Frota confirmada! Aguardando o outro jogador iniciar.';
+      if(b){ b.disabled = true; b.textContent = '✓ FROTA CONFIRMADA'; }
 
       // Verifica imediatamente se o adversário também já confirmou.
       // Assim a partida não depende apenas do próximo evento do listener.
       const snap = await roomRef.once('value');
       const room = snap.val();
       if(room && room.player1?.ready && room.player2?.ready && room.status !== 'finished'){
-        await roomRef.update({status:'playing', turn:room.turn || 'p1'});
+        const turn = room.turn || 'p1';
+        await roomRef.update({status:'playing', turn:turn});
+        handleRoomUpdate({...room, status:'playing', turn:turn});
       }
     }catch(err){
       console.error(err);
@@ -411,10 +426,20 @@
     if(back) back.onclick = function(){ screens.forEach(s=>s.classList.remove('active')); home.classList.add('active'); };
 
     const oldStart = document.getElementById('btnStart');
-    if(oldStart) oldStart.onclick = function(){
-      if(gameMode === 'online') startOnlineBattle();
-      else startBattle();
-    };
+    if(oldStart){
+      // Substitui completamente o handler do script.js para o modo online.
+      // O botão precisa funcionar por toque no Android/WebView também.
+      oldStart.onclick = null;
+      oldStart.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        if(gameMode === 'online') {
+          startOnlineBattle();
+        } else {
+          startBattle();
+        }
+      });
+    }
 
     const restart = document.getElementById('btnRestart');
     if(restart){
