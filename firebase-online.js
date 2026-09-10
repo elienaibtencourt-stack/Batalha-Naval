@@ -44,7 +44,8 @@
     return {ready:false, ships:cloneShips(player.ships)};
   }
 
-  function myPath(){ return role === 'p1' ? 'player1' : 'player2'; }
+  function rolePath(r){ return r === 'p1' ? 'player1' : 'player2'; }
+  function myPath(){ return rolePath(role); }
   function opponentPath(){ return role === 'p1' ? 'player2' : 'player1'; }
 
   function ensureFirebase(){
@@ -256,6 +257,9 @@
     if(Array.isArray(opp.ships)) enemy.ships=cloneShips(opp.ships);
 
     window.__onlineRoomShots = me.shots || {};
+    // Compatibilidade: versões anteriores gravaram alguns tiros em p1/p2.
+    // A partir daqui, a fonte oficial é sempre player1/player2.
+    if(!window.__onlineRoomShots || typeof window.__onlineRoomShots !== 'object') window.__onlineRoomShots = {};
     window.__onlineMyTurn = room?.turn === role;
 
     // Garante que os tiros que EU fiz apareçam no meu ATAQUE,
@@ -406,7 +410,7 @@
     const shotRecord={result,shipIndex,shipName,at:firebase.database.ServerValue.TIMESTAMP};
     const update={};
     update[myPath() + '/ships']=cloneShips(player.ships);
-    update[move.by + '/shots/' + move.index]=shotRecord;
+    update[rolePath(move.by) + '/shots/' + move.index]=shotRecord;
     update['move/status']='resolved';
     update['move/result']=result;
     update['move/shipIndex']=shipIndex;
