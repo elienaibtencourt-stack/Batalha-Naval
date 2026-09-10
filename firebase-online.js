@@ -132,12 +132,18 @@
     gameOver = false;
     renderFleet();
     renderSetup();
-    // IMPORTANTE: a tela ONLINE (#bluetooth) também tem a classe .screen.
-    // A função show() antiga não a removia, deixando ONLINE visível por cima
-    // da tela de preparação. No modo online, escondemos todas as telas
-    // explicitamente e mostramos somente SETUP.
-    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-    document.getElementById('setup')?.classList.add('active');
+    show('setup');
+    setOnlineStatus('Posicione sua frota');
+  }
+  // Abre a tela de posicionamento sem apagar uma frota que já foi montada.
+  function showOnlineSetup(){
+    if(!player || !Array.isArray(player.ships) || player.ships.length === 0){
+      resetForOnlineSetup();
+      return;
+    }
+    renderFleet();
+    renderSetup();
+    show('setup');
     setOnlineStatus('Posicione sua frota');
   }
 
@@ -179,26 +185,20 @@
     }
 
 
-    // IMPORTANTE: verificar primeiro se os dois jogadores estão prontos.
-    // No código anterior o bloco "waiting" fazia return antes desta verificação,
-    // impedindo a partida de mudar para "playing".
-    if(room.player1?.ready && room.player2?.ready && room.status === 'waiting'){
-      roomRef.update({status:'playing', turn: room.turn || 'p1'}).catch(console.error);
+    if(room.status === 'waiting'){
+      if(room.player2){
+        // Quando o segundo jogador entra, os DOIS celulares devem ir para
+        // a tela de posicionamento. Nunca apagar uma frota já montada.
+        showOnlineSetup();
+        setBtStatus('PARTIDA ' + roomCode + ' • segundo jogador conectado. Posicione sua frota.');
+      }else if(role === 'p1'){
+        setBtStatus('PARTIDA ' + roomCode + ' • código para o outro celular: ' + roomCode);
+      }
       return;
     }
 
-    if(room.status === 'waiting'){
-      if(role === 'p1'){
-        if(room.player2){
-          // Não resetar o tabuleiro do jogador 1 quando o segundo celular entra.
-          setBtStatus('PARTIDA ' + roomCode + ' • segundo jogador conectado. Posicione sua frota.');
-          if(document.getElementById('setup')?.classList.contains('active')){
-            setOnlineStatus('Posicione sua frota');
-          }
-        }else{
-          setBtStatus('PARTIDA ' + roomCode + ' • código para o outro celular: ' + roomCode);
-        }
-      }
+    if(room.player1?.ready && room.player2?.ready && room.status !== 'playing'){
+      roomRef.update({status:'playing', turn: room.turn || 'p1'}).catch(console.error);
       return;
     }
 
