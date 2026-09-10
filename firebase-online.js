@@ -236,123 +236,38 @@
   }
 
   function renderOnlineBattle(){
-    const enemyView=(enemy && Array.isArray(enemy.ships)) ? enemy.ships.map(v=>{
-      if(v?.sunk) return v;
-      if(v?.hit) return {hit:true};
-      if(v?.miss) return {miss:true};
-      return undefined;
-    }) : [];
+    const ownShots = {};
+    const enemyView = (enemy && Array.isArray(enemy.ships)) ? cloneShips(enemy.ships) : [];
+    const myShots = (window.__onlineRoomShots || {});
+    Object.keys(myShots).forEach(k=>{
+      const idx=Number(k), shot=myShots[k];
+      if(!shot) return;
+      if(shot.result==='miss') enemyView[idx]={miss:true};
+      else if(shot.result==='hit' || shot.result==='sunk'){
+        const cell=enemyView[idx] || {};
+        cell.hit=true;
+        if(shot.result==='sunk') enemyView.forEach(v=>{if(v?.shipIndex===shot.shipIndex)v.sunk=true;});
+        enemyView[idx]=cell;
+      }
+    });
     const own=(player && Array.isArray(player.ships)) ? player.ships : [];
-    renderOnlineBoard(document.getElementById('enemyBoard'),enemyView,true,false);
+    const active = !!window.__onlineMyTurn;
+    renderOnlineBoard(document.getElementById('enemyBoard'),enemyView,active && !gameOver,false);
     renderOnlineBoard(document.getElementById('playerBoard'),own,false,true);
   }
 
   function enterOnlineBattle(room){
     onlineReady = true;
     gameOver = false;
-    if(room && room[opponentPath()]?.ships){
-      enemy.ships = cloneShips(room[opponentPath()].ships);
-    }
-    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-    const battle = document.getElementById('battle');
+    syncOnlineState(room || {});
+    window.__onlineRoomShots = (room?.[myPath()]?.shots) || {};
+    window.__onlineMyTurn = room?.turn === role;
+    document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
+    const battle=document.getElementById('battle');
     if(battle) battle.classList.add('active');
-    try { renderOnlineBattle(); } catch(err) {
-      console.error('Erro ao renderizar batalha:', err);
-      setBtStatus('Batalha iniciada, mas houve erro ao montar o tabuleiro.');
-    }
-    const myTurn = room?.turn === role;
-    setOnlineStatus(myTurn ? 'Sua vez' : 'Vez do adversário');
+    try{ renderOnlineBattle(); }catch(err){ console.error('Erro ao renderizar batalha:',err); }
+    setOnlineStatus(window.__onlineMyTurn ? 'Sua vez' : 'Vez do adversário');
     if(room) processMove(room);
-  }
-
-  function handleRoomUpdate(room){
-    if(room.status === 'finished' && room.winner){
-      const won = room.winner === role;
-      gameOver = true;
-      setOnlineStatus(won ? '🏆 VOCÊ VENCEU!' : '💀 VOCÊ PERDEU!');
-      return;
-    }
-
-    const me = room[myPath()];
-    const opp = room[opponentPath()];
-
-    if(me?.ready) onlineReady = true;
-
-    if(opp && opp.ships && gameMode === 'online'){
-      // Atualiza a frota adversária sem apagar os tiros que EU já fiz.
-      // O Firebase guarda a posição dos navios, enquanto os resultados dos
-      // meus tiros ficam no estado local deste celular.
-      const previousShots = enemy && enemy.shots instanceof Set ? new Set(enemy.shots) : new Set();
-      const base = cloneShips(opp.ships);
-      previousShots.forEach(i => {
-        if(base[i]) base[i].hit = true;
-        else base[i] = {miss:true};
-      });
-      enemy.ships = base;
-      enemy.shots = previousShots;
-    }
-    if(room.status === 'playing'){
-      if(!document.getElementById('battle')?.classList.contains('active')){
-        enterOnlineBattle(room);
-        return;
-      }
-      try { renderOnlineBattle(); } catch(e) { console.error(e); }
-      // Atualiza a indicação da vez em ambos os celulares a cada mudança.
-      setOnlineStatus(room.turn === role ? 'Sua vez' : 'Vez do adversário');
-      // IMPORTANTE: cada alteração no Firebase precisa processar também
-      // o disparo recebido ou o resultado do nosso próprio disparo.
-      // Sem isso o tiro é gravado, mas nunca é resolvido no outro celular.
-      processMove(room);
-    }
-
-    // PRIMEIRO: se os dois já confirmaram a frota, iniciar a batalha.
-    // Isso precisa acontecer antes do bloco "waiting", pois a sala ainda
-    // pode estar com status waiting no instante em que o segundo jogador
-    // toca em INICIAR BATALHA.
-    if(room.player1?.ready && room.player2?.ready && room.status !== 'playing' && room.status !== 'finished'){
-      onlineReady = true;
-      const turn = room.turn || 'p1';
-      // Muda a sala e, imediatamente após a confirmação do Firebase,
-      // abre a tela de batalha neste celular também. Assim nenhum dos
-      // aparelhos depende de um novo evento/recarregamento para iniciar.
-      roomRef.update({status:'playing', turn:turn}).then(()=>{
-        enterOnlineBattle({...room, status:'playing', turn:turn});
-      }).catch(err=>{
-        console.error(err);
-        setOnlineStatus('Erro ao iniciar a batalha online.');
-        setBtStatus('Erro ao iniciar a batalha: ' + (err.message || err));
-      });
-      return;
-    }
-
-    if(room.status === 'waiting'){
-      if(room.player2){
-        // Não redesenhar continuamente a tela de preparação se ela já está
-        // aberta; isso evita que o botão INICIAR BATALHA seja recriado ou
-        // volte ao estado desabilitado durante a sincronização.
-        const setupActive = document.getElementById('setup')?.classList.contains('active');
-        if(!setupActive){
-          resetForOnlineSetup();
-        }else{
-          const b = document.getElementById('btnStart');
-          if(b) b.disabled = false;
-        }
-        setBtStatus('PARTIDA ' + roomCode + ' • segundo jogador conectado. Posicione sua frota.');
-        if(me?.ready){
-          setOnlineStatus('Frota pronta • aguardando o adversário');
-        }else{
-          setOnlineStatus(allShipsPlaced() ? 'Frota pronta • toque em INICIAR BATALHA' : 'Posicione sua frota');
-        }
-      }else if(role === 'p1'){
-        setBtStatus('PARTIDA ' + roomCode + ' • código para o outro celular: ' + roomCode);
-      }
-      return;
-    }
-
-    if(room.status === 'playing'){
-      onlineReady = true;
-      enterOnlineBattle(room);
-    }
   }
 
   function processMove(room){
@@ -373,102 +288,79 @@
 
   async function resolveIncomingMove(move){
     if(!roomRef || gameOver) return;
-    // Só o jogador atingido resolve o disparo. O próprio Firebase garante
-    // que o campo 'by' identifica quem disparou.
-    const target = player.ships[move.index];
-    let result = 'miss';
-    let shipIndex = null;
-    let shipName = null;
-
+    const target=player.ships[move.index];
+    let result='miss', shipIndex=null, shipName=null;
     if(target && target.shipIndex !== undefined){
-      target.hit = true;
-      shipIndex = target.shipIndex;
-      shipName = target.name;
-      const sunk = checkSunk(player, shipIndex);
+      target.hit=true;
+      shipIndex=target.shipIndex;
+      shipName=target.name;
+      const sunk=checkSunk(player,shipIndex);
       if(sunk){
-        player.ships.forEach(v=>{ if(v?.shipIndex===shipIndex) v.sunk=true; });
-        result = 'sunk';
-        playSound('afundado');
-      }else{
-        result = 'hit';
-        playSound('acerto');
-      }
+        player.ships.forEach(v=>{if(v?.shipIndex===shipIndex)v.sunk=true;});
+        result='sunk'; playSound('afundado');
+      }else{ result='hit'; playSound('acerto'); }
     }else{
-      if(!player.ships[move.index]) player.ships[move.index] = {miss:true};
-      result = 'miss';
-      playSound('agua');
+      if(!player.ships[move.index]) player.ships[move.index]={miss:true};
+      result='miss'; playSound('agua');
     }
-
-    const lost = allSunk(player);
-    const update = {};
-    update['player1/ships'] = role === 'p1' ? cloneShips(player.ships) : undefined;
-    update['player2/ships'] = role === 'p2' ? cloneShips(player.ships) : undefined;
-    if(update['player1/ships'] === undefined) delete update['player1/ships'];
-    if(update['player2/ships'] === undefined) delete update['player2/ships'];
-    update['move/status'] = 'resolved';
-    update['move/result'] = result;
-    update['move/shipIndex'] = shipIndex;
-    update['move/shipName'] = shipName;
-    update['move/at'] = firebase.database.ServerValue.TIMESTAMP;
+    const lost=allSunk(player);
+    const shotRecord={result,shipIndex,shipName,at:firebase.database.ServerValue.TIMESTAMP};
+    const update={};
+    update[myPath() + '/ships']=cloneShips(player.ships);
+    update[move.by + '/shots/' + move.index]=shotRecord;
+    update['move/status']='resolved';
+    update['move/result']=result;
+    update['move/shipIndex']=shipIndex;
+    update['move/shipName']=shipName;
+    update['move/at']=firebase.database.ServerValue.TIMESTAMP;
     if(lost){
-      update.status = 'finished';
-      update.winner = move.by;
-      update.turn = move.by;
+      update.status='finished';
+      update.winner=move.by;
+      update.turn=move.by;
     }else{
-      // Depois que o adversário recebeu nosso tiro, a vez passa para
-      // quem foi atingido (o jogador desta função).
-      update.turn = role;
+      update.turn=role;
     }
     await roomRef.update(update);
-    renderOnlineBattle();
+    window.__onlineMyTurn = !lost;
+    window.__onlineRoomShots = window.__onlineRoomShots || {};
+    try{ renderOnlineBattle(); }catch(e){ console.error(e); }
     if(lost) setOnlineStatus('💀 Sua frota foi destruída');
     else setOnlineStatus('Sua vez');
   }
 
   function applyResolvedMove(move){
-    const idx = Number(move.index);
-    if(move.result === 'miss'){
-      enemy.ships[idx] = {miss:true};
-      playSound('agua');
-    }else{
-      const target = enemy.ships[idx] || {};
-      target.hit = true;
-      if(move.result === 'sunk'){
-        enemy.ships.forEach(v=>{ if(v?.shipIndex === move.shipIndex) v.sunk=true; });
-        playSound('afundado');
-        showSunkMessage('🚢 ' + (move.shipName || 'Navio') + ' — ALVO DESTRUÍDO');
-      }else{
-        playSound('acerto');
-      }
-      enemy.ships[idx] = target;
-    }
+    window.__onlineRoomShots = window.__onlineRoomShots || {};
+    window.__onlineRoomShots[Number(move.index)] = {
+      result:move.result,
+      shipIndex:move.shipIndex,
+      shipName:move.shipName
+    };
+    enemy.shots.add(Number(move.index));
+    if(move.result==='miss') playSound('agua');
+    else if(move.result==='sunk'){
+      enemy.ships.forEach(v=>{if(v?.shipIndex===move.shipIndex)v.sunk=true;});
+      playSound('afundado');
+      showSunkMessage('🚢 ' + (move.shipName || 'Navio') + ' — ALVO DESTRUÍDO');
+    }else playSound('acerto');
+    window.__onlineMyTurn=false;
     renderOnlineBattle();
-    if(move.result === 'sunk'){
-      setOnlineStatus('Vez do adversário');
-    }else{
-      setOnlineStatus('Vez do adversário');
-    }
+    setOnlineStatus('Vez do adversário');
   }
 
   async function onlineAttack(index){
     if(gameOver || !roomRef || !onlineReady) return;
-    const snap = await roomRef.once('value');
-    const room = snap.val();
-    if(!room || room.status !== 'playing' || room.turn !== role) return;
-    if(room.move?.status === 'pending') return;
-    if(enemy.shots.has(index)) return;
-    enemy.shots.add(index);
-    const move = {
-      id: role + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,7),
-      by: role,
-      index:index,
-      status:'pending',
-      at:firebase.database.ServerValue.TIMESTAMP
+    const snap=await roomRef.once('value');
+    const room=snap.val();
+    if(!room || room.status!=='playing' || room.turn!==role) return;
+    if(room.move?.status==='pending') return;
+    if(room[myPath()]?.shots && room[myPath()].shots[index]) return;
+    const move={
+      id:role+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
+      by:role,index:Number(index),status:'pending',at:firebase.database.ServerValue.TIMESTAMP
     };
-    lastProcessedOwnMove = null;
     await roomRef.child('move').set(move);
-    // Mantém a informação de turno imediatamente neste aparelho.
     setOnlineStatus('Disparo enviado • aguardando resultado');
+    window.__onlineMyTurn=false;
     renderOnlineBattle();
   }
 
