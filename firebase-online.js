@@ -203,7 +203,7 @@
         // volte ao estado desabilitado durante a sincronização.
         const setupActive = document.getElementById('setup')?.classList.contains('active');
         if(!setupActive){
-          showOnlineSetup();
+          resetForOnlineSetup();
         }else{
           const b = document.getElementById('btnStart');
           if(b) b.disabled = !allShipsPlaced();
