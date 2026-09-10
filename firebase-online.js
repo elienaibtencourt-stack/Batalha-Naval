@@ -157,10 +157,14 @@
   }
 
   async function sendReady(){
-    if(!roomRef || !allShipsPlaced()) return;
+    if(!roomRef || !allShipsPlaced()) return false;
     const data = {ready:true, ships:cloneShips(player.ships)};
-    await roomRef.child(myPath()).set(data);
+    await roomRef.child(myPath()).update(data);
+    onlineReady = true;
+    const b = document.getElementById('btnStart');
+    if(b) b.disabled = false;
     setOnlineStatus('Frota pronta • aguardando o adversário');
+    return true;
   }
 
   function handleRoomUpdate(room){
@@ -174,31 +178,40 @@
     const me = room[myPath()];
     const opp = room[opponentPath()];
 
+    if(me?.ready) onlineReady = true;
+
     if(opp && opp.ships && gameMode === 'online'){
       enemy.ships = cloneShips(opp.ships);
     }
 
-
-    // IMPORTANTE: verificar primeiro se os dois jogadores estão prontos.
-    // No código anterior o bloco "waiting" fazia return antes desta verificação,
-    // impedindo a partida de mudar para "playing".
+    // PRIMEIRO: se os dois já confirmaram a frota, iniciar a batalha.
+    // Isso precisa acontecer antes do bloco "waiting", pois a sala ainda
+    // pode estar com status waiting no instante em que o segundo jogador
+    // toca em INICIAR BATALHA.
     if(room.player1?.ready && room.player2?.ready && room.status !== 'playing' && room.status !== 'finished'){
+      onlineReady = true;
       roomRef.update({status:'playing', turn: room.turn || 'p1'}).catch(console.error);
       return;
     }
 
     if(room.status === 'waiting'){
       if(room.player2){
-        // Os dois celulares devem permanecer/entrar na tela de posicionamento.
-        // Não apagar uma frota já montada.
-        if(document.getElementById('setup')?.classList.contains('active')){
-          renderFleet();
-          renderSetup();
-        }else{
+        // Não redesenhar continuamente a tela de preparação se ela já está
+        // aberta; isso evita que o botão INICIAR BATALHA seja recriado ou
+        // volte ao estado desabilitado durante a sincronização.
+        const setupActive = document.getElementById('setup')?.classList.contains('active');
+        if(!setupActive){
           showOnlineSetup();
+        }else{
+          const b = document.getElementById('btnStart');
+          if(b) b.disabled = !allShipsPlaced();
         }
         setBtStatus('PARTIDA ' + roomCode + ' • segundo jogador conectado. Posicione sua frota.');
-        setOnlineStatus(allShipsPlaced() ? 'Frota pronta • aguardando o adversário' : 'Posicione sua frota');
+        if(me?.ready){
+          setOnlineStatus('Frota pronta • aguardando o adversário');
+        }else{
+          setOnlineStatus(allShipsPlaced() ? 'Frota pronta • toque em INICIAR BATALHA' : 'Posicione sua frota');
+        }
       }else if(role === 'p1'){
         setBtStatus('PARTIDA ' + roomCode + ' • código para o outro celular: ' + roomCode);
       }
@@ -206,8 +219,9 @@
     }
 
     if(room.status === 'playing'){
+      onlineReady = true;
       if(document.getElementById('setup')?.classList.contains('active')){
-        if(allShipsPlaced()) renderSetup();
+        renderSetup();
         renderBattle();
         show('battle');
       }
@@ -327,13 +341,23 @@
     setOnlineStatus('Disparo enviado • aguardando resultado');
   }
 
-  function startOnlineBattle(){
-    if(!allShipsPlaced()){
+  async function startOnlineBattle(){
+    const complete = allShipsPlaced();
+    const b = document.getElementById('btnStart');
+    if(!complete){
+      if(b) b.disabled = true;
       alert('⚠️ Posicione todos os navios antes de iniciar.');
       return;
     }
+    if(b) b.disabled = false;
     onlineReady = true;
-    sendReady().catch(console.error);
+    try{
+      await sendReady();
+    }catch(err){
+      console.error(err);
+      onlineReady = false;
+      setOnlineStatus('Erro ao confirmar a frota. Tente novamente.');
+    }
   }
 
   function patchBattleClicks(){
