@@ -70,9 +70,6 @@
     role = 'p1';
     roomCode = makeCode();
     roomRef = db.ref('rooms/' + roomCode);
-    // CORREÇÃO: quem cria a partida também entra imediatamente na preparação.
-    // A frota é limpa antes de criar a sala para o P1 começar vazio.
-    resetForOnlineSetup();
     try{
       const snap = await roomRef.once('value');
       if(snap.exists()) return createRoom();
@@ -85,9 +82,8 @@
         winner:null,
         createdAt:firebase.database.ServerValue.TIMESTAMP
       });
-      // O criador também entra imediatamente na tela de posicionamento.
-      // Isso evita que apenas o segundo jogador consiga montar a frota.
-      resetForOnlineSetup();
+      // O criador permanece na tela ONLINE para visualizar e informar o código.
+      // Quando o segundo jogador entrar, handleRoomUpdate() levará o P1 para a preparação.
       listenRoom();
       setBtStatus('PARTIDA CRIADA • CÓDIGO: ' + roomCode + ' • Aguardando o outro jogador...');
     }catch(err){
