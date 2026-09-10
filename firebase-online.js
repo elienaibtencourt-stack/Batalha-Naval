@@ -314,16 +314,24 @@
       return;
     }
 
-    // Esperando o segundo jogador: mantém o criador na tela ONLINE.
+    // Enquanto o segundo jogador não entrou, o criador permanece na tela ONLINE.
+    // Assim que o P2 entrar, o P1 também deve ir para a tela de posicionamento.
+    // Importante: só fazemos essa transição se o P1 ainda não estiver no SETUP,
+    // para não apagar uma frota que ele já começou a posicionar.
     if(room.status==='waiting'){
       onlineReady=false;
       const setup=document.getElementById('setup');
       const battle=document.getElementById('battle');
-      if(!battle?.classList.contains('active') && !setup?.classList.contains('active')){
+      if(room.player2){
+        if(!battle?.classList.contains('active') && !setup?.classList.contains('active')){
+          resetForOnlineSetup();
+        }
+        setBtStatus('Segundo jogador conectado • ambos podem posicionar a frota.');
+      }else if(!battle?.classList.contains('active') && !setup?.classList.contains('active')){
         document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
         document.getElementById('bluetooth')?.classList.add('active');
+        setBtStatus('PARTIDA CRIADA • CÓDIGO: '+roomCode+' • Aguardando o outro jogador...');
       }
-      setBtStatus(room.player2 ? 'Segundo jogador conectado • ambos podem posicionar a frota.' : 'PARTIDA CRIADA • CÓDIGO: '+roomCode+' • Aguardando o outro jogador...');
     }
   }
 
