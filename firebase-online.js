@@ -190,6 +190,24 @@
     return true;
   }
 
+  function enterOnlineBattle(room){
+    onlineReady = true;
+    gameOver = false;
+    if(room && room[opponentPath()]?.ships){
+      enemy.ships = cloneShips(room[opponentPath()].ships);
+    }
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    const battle = document.getElementById('battle');
+    if(battle) battle.classList.add('active');
+    try { renderBattle(); } catch(err) {
+      console.error('Erro ao renderizar batalha:', err);
+      setBtStatus('Batalha iniciada, mas houve erro ao montar o tabuleiro.');
+    }
+    const myTurn = room?.turn === role;
+    setOnlineStatus(myTurn ? 'Sua vez' : 'Vez do adversário');
+    if(room) processMove(room);
+  }
+
   function handleRoomUpdate(room){
     if(room.status === 'finished' && room.winner){
       const won = room.winner === role;
@@ -218,7 +236,7 @@
       // abre a tela de batalha neste celular também. Assim nenhum dos
       // aparelhos depende de um novo evento/recarregamento para iniciar.
       roomRef.update({status:'playing', turn:turn}).then(()=>{
-        handleRoomUpdate({...room, status:'playing', turn:turn});
+        enterOnlineBattle({...room, status:'playing', turn:turn});
       }).catch(err=>{
         console.error(err);
         setOnlineStatus('Erro ao iniciar a batalha online.');
@@ -253,14 +271,7 @@
 
     if(room.status === 'playing'){
       onlineReady = true;
-      if(document.getElementById('setup')?.classList.contains('active')){
-        renderSetup();
-        renderBattle();
-        show('battle');
-      }
-      const myTurn = room.turn === role;
-      setOnlineStatus(myTurn ? 'Sua vez' : 'Vez do adversário');
-      processMove(room);
+      enterOnlineBattle(room);
     }
   }
 
@@ -407,7 +418,7 @@
       if(room && room.player1?.ready && room.player2?.ready && room.status !== 'finished'){
         const turn = room.turn || 'p1';
         await roomRef.update({status:'playing', turn:turn});
-        handleRoomUpdate({...room, status:'playing', turn:turn});
+        enterOnlineBattle({...room, status:'playing', turn:turn});
       }else{
         setBtStatus('Frota confirmada! Aguardando o outro jogador confirmar.');
       }
