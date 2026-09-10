@@ -196,9 +196,26 @@
   function renderOnlineBoard(el, grid, clickable, revealShips){
     if(!el) return;
     el.innerHTML = '';
+    el.style.display='grid';
+    el.style.gridTemplateColumns='repeat(10, minmax(0, 1fr))';
+    el.style.gridTemplateRows='repeat(10, minmax(0, 1fr))';
+    el.style.gap='2px';
+    el.style.padding='6px';
+    el.style.boxSizing='border-box';
     for(let i=0;i<100;i++){
       const c=document.createElement('div');
       c.className='cell';
+      c.style.boxSizing='border-box';
+      c.style.width='100%';
+      c.style.aspectRatio='1 / 1';
+      c.style.minWidth='0';
+      c.style.border='1px solid rgba(255,255,255,.28)';
+      c.style.background='rgba(0,120,180,.28)';
+      c.style.display='flex';
+      c.style.alignItems='center';
+      c.style.justifyContent='center';
+      c.style.fontSize='clamp(14px,4vw,24px)';
+      c.style.borderRadius='3px';
       const item=grid[i];
       if(revealShips && item && item.shipIndex !== undefined) c.classList.add('ship');
       if(item?.hit) c.classList.add(item.sunk ? 'sunk' : 'hit');
@@ -264,8 +281,16 @@
     if(opp && opp.ships && gameMode === 'online'){
       enemy.ships = cloneShips(opp.ships);
     }
-    if(room.status === 'playing' && document.getElementById('battle')?.classList.contains('active')){
+    if(room.status === 'playing'){
+      if(!document.getElementById('battle')?.classList.contains('active')){
+        enterOnlineBattle(room);
+        return;
+      }
       try { renderOnlineBattle(); } catch(e) { console.error(e); }
+      // IMPORTANTE: cada alteração no Firebase precisa processar também
+      // o disparo recebido ou o resultado do nosso próprio disparo.
+      // Sem isso o tiro é gravado, mas nunca é resolvido no outro celular.
+      processMove(room);
     }
 
     // PRIMEIRO: se os dois já confirmaram a frota, iniciar a batalha.
