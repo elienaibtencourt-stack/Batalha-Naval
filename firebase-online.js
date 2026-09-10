@@ -206,7 +206,7 @@
           resetForOnlineSetup();
         }else{
           const b = document.getElementById('btnStart');
-          if(b) b.disabled = !allShipsPlaced();
+          if(b) b.disabled = false;
         }
         setBtStatus('PARTIDA ' + roomCode + ' • segundo jogador conectado. Posicione sua frota.');
         if(me?.ready){
@@ -347,14 +347,31 @@
     const complete = allShipsPlaced();
     const b = document.getElementById('btnStart');
     if(!complete){
-      if(b) b.disabled = true;
+      if(b) b.disabled = false;
       alert('⚠️ Posicione todos os navios antes de iniciar.');
       return;
     }
     if(b) b.disabled = false;
+    if(!roomRef || !role){
+      setOnlineStatus('Partida online não está conectada.');
+      return;
+    }
     onlineReady = true;
     try{
-      await sendReady();
+      // Confirma a frota deste jogador diretamente no Firebase.
+      await roomRef.child(myPath()).update({
+        ready:true,
+        ships:cloneShips(player.ships)
+      });
+      setOnlineStatus('Frota pronta • aguardando o adversário');
+
+      // Verifica imediatamente se o adversário também já confirmou.
+      // Assim a partida não depende apenas do próximo evento do listener.
+      const snap = await roomRef.once('value');
+      const room = snap.val();
+      if(room && room.player1?.ready && room.player2?.ready && room.status !== 'finished'){
+        await roomRef.update({status:'playing', turn:room.turn || 'p1'});
+      }
     }catch(err){
       console.error(err);
       onlineReady = false;
