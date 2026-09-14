@@ -641,13 +641,53 @@ function allSunk(state){
   });
 }
 
+function showFinalResultMessage(won){
+  const old = document.getElementById("finalResultMessage");
+  if(old) old.remove();
+
+  const box = document.createElement("div");
+  box.id = "finalResultMessage";
+  box.className = "final-result-message " + (won ? "win" : "lose");
+  box.innerHTML = won
+    ? '<div class="final-result-icon">🏆</div><div class="final-result-title">VOCÊ VENCEU!</div>'
+    : '<div class="final-result-icon">💀</div><div class="final-result-title">VOCÊ PERDEU!</div>';
+
+  if(!document.getElementById("finalResultMessageStyle")){
+    const style = document.createElement("style");
+    style.id = "finalResultMessageStyle";
+    style.textContent = `
+      .final-result-message{
+        position:fixed; inset:0; z-index:99999;
+        display:flex; flex-direction:column; justify-content:center; align-items:center;
+        text-align:center; padding:24px; box-sizing:border-box;
+        background:rgba(0,0,0,.72); backdrop-filter:blur(3px);
+        animation:finalResultIn .25s ease-out;
+      }
+      .final-result-icon{font-size:76px; line-height:1; margin-bottom:14px;}
+      .final-result-title{font-size:clamp(34px,8vw,58px); font-weight:900; letter-spacing:1px; text-shadow:0 3px 10px rgba(0,0,0,.55);}
+      .final-result-message.win .final-result-title{color:#54e37b;}
+      .final-result-message.lose .final-result-title{color:#ff5d5d;}
+      .final-result-message.hide{opacity:0; transition:opacity .5s ease;}
+      @keyframes finalResultIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.body.appendChild(box);
+  setTimeout(()=>box.classList.add("hide"),2200);
+  setTimeout(()=>box.remove(),2700);
+}
+
 function finish(msg){
   gameOver = true;
+  const won = msg.indexOf("VOCÊ VENCEU") !== -1;
+  const resultText = won ? "🏆 VOCÊ VENCEU!" : "💀 VOCÊ PERDEU!";
 
-  $("statusLabel").textContent = msg;
+  $("statusLabel").textContent = resultText;
+  showFinalResultMessage(won);
 
   setTimeout(()=>{
-    alert(msg);
+    alert(resultText);
   },50);
 }
 
