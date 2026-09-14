@@ -531,6 +531,16 @@ function showSunkMessage(message){
 }
 
 function handleEnemyShot(i){
+  if(gameMode === "localNetwork") {
+    if(gameOver || enemy.shots.has(i)) return;
+    if(window.__bnLocalMyTurn !== true) return;
+    enemy.shots.add(i);
+    if(window.BNLocalTransport && typeof window.BNLocalTransport.sendShot === "function") {
+      window.BNLocalTransport.sendShot(i);
+    }
+    return;
+  }
+
   if(gameOver || enemy.shots.has(i)) return;
 
   enemy.shots.add(i);
@@ -738,3 +748,113 @@ $("btnRestart").onclick = ()=>{
 
 renderFleet();
 renderSetup();
+
+/* API isolada para o modo REDE LOCAL. Não é usada pelo Firebase/Online. */
+window.BNLocalCore = {
+  enterSetup(){
+    gameMode = "localNetwork";
+    player = {ships:[],shots:new Set()};
+    enemy = {ships:[],shots:new Set()};
+    selectedShip = 0;
+    horizontal = true;
+    previewStart = null;
+    gameOver = false;
+    window.__bnLocalMyTurn = false;
+    renderFleet();
+    renderSetup();
+    show("setup");
+  },
+  getFleet(){
+    return player.ships.map(v => v ? {
+      id:v.id, name:v.name, shipIndex:v.shipIndex,
+      hit:false, sunk:false
+    } : null);
+  },
+  fleetComplete(){
+    return SHIPS.every((s,i) =>
+      player.ships.filter(v => v?.shipIndex === i).length === s.size
+    );
+  },
+  startBattle(opponentFleet, myTurn){
+    gameMode = "localNetwork";
+    enemy = {ships: opponentFleet.map(v => v ? {
+      id:v.id, name:v.name, shipIndex:v.shipIndex,
+      hit:false, sunk:false
+    } : null), shots:new Set()};
+    player.shots = new Set();
+    gameOver = false;
+    window.__bnLocalMyTurn = !!myTurn;
+    renderBattle();
+    $("statusLabel").textContent = myTurn ? "Sua vez" : "Vez do adversário";
+    $("turnLabel").textContent = myTurn ? "Sua vez" : "Vez do adversário";
+    show("battle");
+  },
+  receiveShot(i){
+    if(gameOver || player.shots.has(i)) return null;
+    player.shots.add(i);
+
+    const target = player.ships[i];
+    if(target){
+      target.hit = true;
+      const sunk = checkSunk(player,target.shipIndex);
+      if(sunk){
+        player.ships.forEach(v=>{
+          if(v?.shipIndex === target.shipIndex) v.sunk = true;
+        });
+        playSound("afundado");
+      }else{
+        playSound("acerto");
+      }
+      renderBattle();
+      const defeated = allSunk(player);
+      if(defeated){
+        finish("💀 VOCÊ PERDEU!");
+      }
+      return {hit:true, sunk, name:target.name, shipIndex:target.shipIndex, gameOver:defeated};
+    }
+
+    playSound("agua");
+    player.ships[i] = {miss:true};
+    renderBattle();
+    return {hit:false, sunk:false, gameOver:false};
+  },
+  applyShotResult(i,result){
+    if(!result) return;
+    if(result.hit){
+      const target = enemy.ships[i] || {shipIndex:result.shipIndex, name:result.name};
+      target.hit = true;
+      if(result.sunk){
+        enemy.ships.forEach(v=>{
+          if(v?.shipIndex === result.shipIndex) v.sunk = true;
+        });
+        playSound("afundado");
+      }else{
+        playSound("acerto");
+      }
+    }else{
+      enemy.ships[i] = {miss:true};
+      playSound("agua");
+    }
+    renderBattle();
+    if(result.gameOver){
+      finish("🏆 VOCÊ VENCEU!");
+      return;
+    }
+    window.__bnLocalMyTurn = false;
+    $("statusLabel").textContent = "Vez do adversário";
+    $("turnLabel").textContent = "Vez do adversário";
+  },
+  opponentShotResolved(){
+    if(gameOver) return;
+    window.__bnLocalMyTurn = true;
+    $("statusLabel").textContent = "Sua vez";
+    $("turnLabel").textContent = "Sua vez";
+  },
+  cancel(){
+    gameMode = "local";
+    gameOver = false;
+    window.__bnLocalMyTurn = false;
+    show("home");
+  }
+};
+
