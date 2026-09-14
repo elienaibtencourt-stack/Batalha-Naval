@@ -140,8 +140,10 @@
           <p class="local-small">Depois que o celular 2 gerar a resposta, escaneie o QR Code mostrado nele.</p>
           <button id="btnQRScanAnswer">📷 ESCANEAR QR DE RESPOSTA</button>
           <div id="qrScannerAnswer" class="qr-scanner" hidden>
-            <video id="qrVideoAnswer" class="qr-video" playsinline muted></video>
+            <video id="qrVideoAnswer" class="qr-video" autoplay playsinline muted></video>
             <div id="qrScanStatusAnswer" class="qr-scan-status">Aponte a câmera para o QR Code.</div>
+            <button id="btnQRPhotoAnswer" class="secondary">📸 FOTOGRAFAR QR CODE</button>
+            <input id="qrPhotoAnswer" type="file" accept="image/*" capture="environment" hidden>
             <button id="btnQRStopAnswer" class="secondary">PARAR CÂMERA</button>
           </div>
           <div class="qr-divider">ou use o método antigo</div>
@@ -154,8 +156,10 @@
           <p class="local-small">Use a câmera para escanear o QR Code mostrado no celular 1.</p>
           <button id="btnQRScanOffer">📷 ESCANEAR QR DO CELULAR 1</button>
           <div id="qrScannerOffer" class="qr-scanner" hidden>
-            <video id="qrVideoOffer" class="qr-video" playsinline muted></video>
+            <video id="qrVideoOffer" class="qr-video" autoplay playsinline muted></video>
             <div id="qrScanStatusOffer" class="qr-scan-status">Aponte a câmera para o QR Code.</div>
+            <button id="btnQRPhotoOffer" class="secondary">📸 FOTOGRAFAR QR CODE</button>
+            <input id="qrPhotoOffer" type="file" accept="image/*" capture="environment" hidden>
             <button id="btnQRStopOffer" class="secondary">PARAR CÂMERA</button>
           </div>
           <div class="qr-divider">ou use o método antigo</div>
@@ -193,11 +197,11 @@
     </section>
   </main>
 
-  <script src="script.js?v=20260914_03"></script>
+  <script src="script.js?v=20260914_04"></script>
   <script src="firebase-online.js?v=20260914_02"></script>
-  <script src="rede-local.js?v=20260914_02"></script>
+  <script src="rede-local.js?v=20260914_03"></script>
   <script src="qr-generator-local.js?v=20260914_01"></script>
-  <script src="qr-local-ui.js?v=20260914_01"></script>
+  <script src="qr-local-ui.js?v=20260914_02"></script>
   <script>
     (function(){
       const splash=document.getElementById('splashScreen');

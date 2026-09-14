@@ -1,5 +1,6 @@
 /* Batalha Naval MB — QR Code para a troca dos dados WebRTC.
  * Esta camada é independente do Firebase/Online e mantém o método manual como fallback.
+ * Possui leitura ao vivo e também captura de foto, para WebViews que não liberam getUserMedia.
  */
 (function(){
   'use strict';
@@ -19,7 +20,7 @@
   function renderQR(text, boxId, imageId){
     if(!text || !window.BNQRCode) return false;
     try{
-      const qr=new window.BNQRCode(-1, 1); // L = menor redundância, maior capacidade
+      const qr=new window.BNQRCode(-1, 1);
       qr.addData(text);
       qr.make();
       const count=qr.getModuleCount();
@@ -51,30 +52,82 @@
     }
   }
 
+  function hideScannerArea(areaId){
+    const area=$(areaId);
+    if(area) area.hidden=true;
+  }
+
   function stopScanner(){
     if(scanTimer){ clearInterval(scanTimer); scanTimer=null; }
     if(stream){ stream.getTracks().forEach(t=>{try{t.stop();}catch(_){}}); stream=null; }
     if(activeScanner){
       const v=$(activeScanner.videoId);
-      if(v) v.srcObject=null;
-      const area=$(activeScanner.areaId);
-      if(area) area.hidden=true;
+      if(v){ try{v.pause();}catch(_){} v.srcObject=null; }
+      hideScannerArea(activeScanner.areaId);
       activeScanner=null;
     }
   }
 
-  async function startScanner(videoId, areaId, statusId, onResult){
+  async function scanPhoto(inputId, statusId, onResult){
+    const input=$(inputId), status=$(statusId);
+    if(!input) return;
+    if(status) status.textContent='📸 Escolha a câmera e fotografe o QR Code...';
+    input.value='';
+    input.onchange=async()=>{
+      const file=input.files && input.files[0];
+      if(!file) return;
+      try{
+        if(!('BarcodeDetector' in window)) throw new Error('BarcodeDetector indisponível');
+        const detector=new BarcodeDetector({formats:['qr_code']});
+        let source;
+        if('createImageBitmap' in window){
+          source=await createImageBitmap(file);
+        }else{
+          source=await new Promise((resolve,reject)=>{
+            const img=new Image();
+            img.onload=()=>resolve(img);
+            img.onerror=reject;
+            img.src=URL.createObjectURL(file);
+          });
+        }
+        const found=await detector.detect(source);
+        if(source && typeof source.close==='function') source.close();
+        if(found && found.length && found[0].rawValue){
+          if(status) status.textContent='✅ QR Code lido!';
+          onResult(found[0].rawValue.trim());
+        }else{
+          if(status) status.textContent='⚠️ QR Code não foi identificado. Fotografe novamente mais de perto.';
+        }
+      }catch(err){
+        console.error('QR photo scan error',err);
+        if(status) status.textContent='⚠️ Não foi possível ler a foto. Tente novamente ou use o método manual.';
+      }finally{
+        input.value='';
+      }
+    };
+    input.click();
+  }
+
+  async function startScanner(videoId, areaId, statusId, onResult, photoInputId){
     stopScanner();
     const status=$(statusId), area=$(areaId), video=$(videoId);
     if(!area || !video) return;
     area.hidden=false;
+    activeScanner={videoId,areaId,statusId};
+
+    const fallbackPhoto=()=>{
+      stopScanner();
+      if(status) status.textContent='📸 A câmera ao vivo não abriu. Vamos usar a câmera de foto.';
+      scanPhoto(photoInputId,statusId,onResult);
+    };
 
     if(!('BarcodeDetector' in window)){
-      if(status) status.textContent='⚠️ O leitor QR não está disponível neste aparelho. Use o campo de código abaixo.';
+      if(status) status.textContent='⚠️ Leitor QR ao vivo indisponível. Abrindo câmera de foto...';
+      fallbackPhoto();
       return;
     }
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      if(status) status.textContent='⚠️ A câmera não está disponível neste aplicativo.';
+      fallbackPhoto();
       return;
     }
 
@@ -83,13 +136,15 @@
       try{
         const supported=await BarcodeDetector.getSupportedFormats();
         if(!supported.includes('qr_code')) throw new Error('QR Code não suportado');
-      }catch(_){ /* alguns WebViews não expõem getSupportedFormats; tentamos mesmo assim */ }
+      }catch(_){ }
 
       const detector=new BarcodeDetector({formats});
       stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+      video.setAttribute('autoplay','');
+      video.setAttribute('playsinline','');
+      video.muted=true;
       video.srcObject=stream;
       await video.play();
-      activeScanner={videoId,areaId,statusId};
       if(status) status.textContent='📷 Aponte a câmera para o QR Code...';
 
       scanTimer=setInterval(async()=>{
@@ -105,19 +160,13 @@
               cb(value);
             }
           }
-        }catch(err){
-          // A leitura é tentada novamente no próximo ciclo.
-        }
+        }catch(err){ }
       },220);
     }catch(err){
-      stopScanner();
-      if(status){
-        if(err && (err.name==='NotAllowedError' || err.name==='PermissionDeniedError')){
-          status.textContent='⚠️ Permissão da câmera negada. Autorize a câmera e tente novamente.';
-        }else{
-          status.textContent='⚠️ Não foi possível abrir a câmera neste aparelho.';
-        }
-      }
+      const denied=err && (err.name==='NotAllowedError' || err.name==='PermissionDeniedError');
+      console.warn('Camera live unavailable',err);
+      fallbackPhoto();
+      if(denied && status) status.textContent='📸 A câmera ao vivo foi bloqueada. Abrindo câmera de foto...';
     }
   }
 
@@ -136,36 +185,42 @@
   }
 
   function install(){
-    // Celular 1: oferta -> QR
     $('btnLocalHost')?.addEventListener('click',()=>{
       clearQR('localOfferQR','localOfferQRImage');
       waitForValue('localOffer',value=>renderQR(value,'localOfferQR','localOfferQRImage'));
     });
 
-    // Celular 2: resposta -> QR
     $('btnLocalMakeAnswer')?.addEventListener('click',()=>{
       clearQR('localAnswerQR','localAnswerQRImage');
       waitForValue('localAnswer',value=>renderQR(value,'localAnswerQR','localAnswerQRImage'));
     });
 
-    // Celular 2 lê a oferta e gera a resposta automaticamente.
     $('btnQRScanOffer')?.addEventListener('click',()=>{
       startScanner('qrVideoOffer','qrScannerOffer','qrScanStatusOffer',value=>{
         const input=$('localOfferInput');
         if(input) input.value=value;
         $('btnLocalMakeAnswer')?.click();
-      });
+      },'qrPhotoOffer');
     });
+    $('btnQRPhotoOffer')?.addEventListener('click',()=>scanPhoto('qrPhotoOffer','qrScanStatusOffer',value=>{
+      const input=$('localOfferInput');
+      if(input) input.value=value;
+      $('btnLocalMakeAnswer')?.click();
+    }));
     $('btnQRStopOffer')?.addEventListener('click',stopScanner);
 
-    // Celular 1 lê a resposta e conecta automaticamente.
     $('btnQRScanAnswer')?.addEventListener('click',()=>{
       startScanner('qrVideoAnswer','qrScannerAnswer','qrScanStatusAnswer',value=>{
         const input=$('localAnswerInput');
         if(input) input.value=value;
         $('btnLocalAcceptAnswer')?.click();
-      });
+      },'qrPhotoAnswer');
     });
+    $('btnQRPhotoAnswer')?.addEventListener('click',()=>scanPhoto('qrPhotoAnswer','qrScanStatusAnswer',value=>{
+      const input=$('localAnswerInput');
+      if(input) input.value=value;
+      $('btnLocalAcceptAnswer')?.click();
+    }));
     $('btnQRStopAnswer')?.addEventListener('click',stopScanner);
 
     $('btnLocalNetworkBack')?.addEventListener('click',()=>{
@@ -175,6 +230,6 @@
     });
   }
 
-  window.BNLocalQR={renderQR, startScanner, stopScanner};
+  window.BNLocalQR={renderQR,startScanner,stopScanner,scanPhoto};
   window.addEventListener('load',install);
 })();
