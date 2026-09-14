@@ -69,10 +69,40 @@
     });
   }
 
-  function encode(obj){ return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
-  function decode(text){
-    try{return JSON.parse(decodeURIComponent(escape(atob(text.trim()))));}
-    catch(e){throw new Error('Código inválido ou incompleto.');}
+  function bytesToB64(bytes){
+    let s='';
+    for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
+    return btoa(s);
+  }
+  function b64ToBytes(text){
+    const s=atob(text); const out=new Uint8Array(s.length);
+    for(let i=0;i<s.length;i++) out[i]=s.charCodeAt(i);
+    return out;
+  }
+  async function encode(obj){
+    const json=JSON.stringify(obj);
+    try{
+      if(window.CompressionStream){
+        const stream=new Blob([json]).stream().pipeThrough(new CompressionStream('deflate'));
+        const bytes=new Uint8Array(await new Response(stream).arrayBuffer());
+        return 'BNZ1.'+bytesToB64(bytes);
+      }
+    }catch(_){}
+    return 'BNL1.' + btoa(unescape(encodeURIComponent(json)));
+  }
+  async function decode(text){
+    try{
+      text=text.trim();
+      if(text.indexOf('BNZ1.')===0){
+        const bytes=b64ToBytes(text.slice(5));
+        if(!window.DecompressionStream) throw new Error('Compressão não suportada neste aparelho');
+        const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+        const json=await new Response(stream).text();
+        return JSON.parse(json);
+      }
+      if(text.indexOf('BNL1.')===0) text=text.slice(5);
+      return JSON.parse(decodeURIComponent(escape(atob(text))));
+    }catch(e){throw new Error('Código inválido ou incompleto.');}
   }
 
   function send(data){
@@ -151,7 +181,7 @@
       const offer=await pc.createOffer();
       await pc.setLocalDescription(offer);
       await waitIceComplete(pc);
-      $('localOffer').value=encode({type:pc.localDescription.type,sdp:pc.localDescription.sdp});
+      $('localOffer').value=await encode({type:pc.localDescription.type,sdp:pc.localDescription.sdp});
       setStatus('📋 Código criado. Envie-o ao celular 2.');
     }catch(err){ setStatus('❌ Não foi possível criar a conexão: '+err.message); }
   }
@@ -171,11 +201,11 @@
   async function makeAnswer(){
     if(!pc || role!=='join') return;
     try{
-      await pc.setRemoteDescription(decode($('localOfferInput').value));
+      await pc.setRemoteDescription(await decode($('localOfferInput').value));
       const answer=await pc.createAnswer();
       await pc.setLocalDescription(answer);
       await waitIceComplete(pc);
-      $('localAnswer').value=encode({type:pc.localDescription.type,sdp:pc.localDescription.sdp});
+      $('localAnswer').value=await encode({type:pc.localDescription.type,sdp:pc.localDescription.sdp});
       setStatus('📋 Resposta criada. Envie-a de volta ao celular 1.');
     }catch(err){ setStatus('❌ Não foi possível gerar a resposta: '+err.message); }
   }
@@ -183,7 +213,7 @@
   async function acceptAnswer(){
     if(!pc || role!=='host') return;
     try{
-      await pc.setRemoteDescription(decode($('localAnswerInput').value));
+      await pc.setRemoteDescription(await decode($('localAnswerInput').value));
       setStatus('⏳ Conectando ao celular 2...');
     }catch(err){ setStatus('❌ Resposta inválida: '+err.message); }
   }

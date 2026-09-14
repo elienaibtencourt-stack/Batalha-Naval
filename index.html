@@ -142,7 +142,7 @@
           <div id="qrScannerAnswer" class="qr-scanner" hidden>
             <video id="qrVideoAnswer" class="qr-video" autoplay playsinline muted></video>
             <div id="qrScanStatusAnswer" class="qr-scan-status">Aponte a câmera para o QR Code.</div>
-            <button id="btnQRPhotoAnswer" class="secondary">📸 FOTOGRAFAR QR CODE</button>
+            <button id="btnQRPhotoAnswer" class="secondary">📸 FOTOGRAFAR E LER QR</button>
             <input id="qrPhotoAnswer" type="file" accept="image/*" capture="environment" hidden>
             <button id="btnQRStopAnswer" class="secondary">PARAR CÂMERA</button>
           </div>
@@ -158,7 +158,7 @@
           <div id="qrScannerOffer" class="qr-scanner" hidden>
             <video id="qrVideoOffer" class="qr-video" autoplay playsinline muted></video>
             <div id="qrScanStatusOffer" class="qr-scan-status">Aponte a câmera para o QR Code.</div>
-            <button id="btnQRPhotoOffer" class="secondary">📸 FOTOGRAFAR QR CODE</button>
+            <button id="btnQRPhotoOffer" class="secondary">📸 FOTOGRAFAR E LER QR</button>
             <input id="qrPhotoOffer" type="file" accept="image/*" capture="environment" hidden>
             <button id="btnQRStopOffer" class="secondary">PARAR CÂMERA</button>
           </div>
@@ -199,9 +199,10 @@
 
   <script src="script.js?v=20260914_04"></script>
   <script src="firebase-online.js?v=20260914_02"></script>
-  <script src="rede-local.js?v=20260914_03"></script>
-  <script src="qr-generator-local.js?v=20260914_01"></script>
-  <script src="qr-local-ui.js?v=20260914_02"></script>
+  <script src="rede-local.js?v=20260914_04"></script>
+  <script src="qr-generator-local.js?v=20260914_02"></script>
+<script src="bn-qr-decoder.js?v=20260914_01"></script>
+  <script src="qr-local-ui.js?v=20260914_03"></script>
   <script>
     (function(){
       const splash=document.getElementById('splashScreen');

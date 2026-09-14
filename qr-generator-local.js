@@ -1274,6 +1274,7 @@ QRCode.createBytes = function(buffer, rsBlocks) {
 
 };
 
+QRCode._getRSBlocks = function(typeNumber, errorCorrectLevel){ return QRRSBlock.getRSBlocks(typeNumber, errorCorrectLevel); };
 module.exports = QRCode;
 
 });
