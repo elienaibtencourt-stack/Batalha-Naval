@@ -686,9 +686,6 @@ function finish(msg){
   $("statusLabel").textContent = resultText;
   showFinalResultMessage(won);
 
-  setTimeout(()=>{
-    alert(resultText);
-  },50);
 }
 
 $("btnLocal").onclick = ()=>{
