@@ -34,6 +34,15 @@
     #localNetwork .local-actions{display:grid;gap:10px;margin:16px 0}
     #localNetwork .local-area{margin-top:16px;padding:14px;border-radius:14px;background:rgba(0,0,0,.16);text-align:left}
     #localNetwork .local-code{width:100%;min-height:125px;resize:vertical;border:1px solid #38667c;border-radius:10px;background:#071b28;color:#e7f7ff;padding:10px;font:12px/1.35 monospace;box-sizing:border-box;margin:7px 0 9px}
+    #localNetwork .qr-box{margin:12px 0;padding:12px;border-radius:14px;background:#fff;text-align:center;color:#10222c}
+    #localNetwork .qr-box img,#localNetwork .qr-box canvas{display:block;width:min(82vw,300px);height:auto;max-width:100%;margin:0 auto;border:8px solid #fff;box-sizing:border-box}
+    #localNetwork .qr-title{font-weight:900;color:#123;padding-bottom:8px}
+    #localNetwork .qr-note{font-size:.82rem;color:#345;margin:8px 0 0}
+    #localNetwork .qr-scan{display:grid;gap:8px;margin-top:10px}
+    #localNetwork .qr-scanner{margin-top:12px;padding:12px;border-radius:14px;background:#071b28;text-align:center}
+    #localNetwork .qr-video{width:100%;max-width:360px;border-radius:12px;background:#000;display:block;margin:0 auto}
+    #localNetwork .qr-scan-status{margin:8px 0;font-weight:700;line-height:1.4}
+    #localNetwork .qr-divider{margin:10px 0;color:#9fb8c7;font-size:.82rem;text-align:center}
     #localNetwork .local-status{margin:16px 0;padding:12px;border-radius:12px;background:rgba(0,0,0,.22);font-weight:700;line-height:1.45}
     #localNetwork .local-message-area{margin:14px 0;padding:14px;border-radius:14px;background:rgba(30,120,80,.14)}
     #localNetwork .local-received{margin-top:10px;padding:10px;border-radius:10px;background:rgba(0,0,0,.2);font-size:.9rem;line-height:1.4}
@@ -110,7 +119,7 @@
       <div class="local-box">
         <div class="local-icon">📶</div>
         <h3>Partida direta pela rede Wi‑Fi</h3>
-        <p class="local-note">Gratuito, sem Firebase, sem internet e sem Bluetooth. Os dois celulares precisam estar na mesma rede Wi‑Fi.</p>
+        <p class="local-note">Gratuito, sem Firebase, sem internet e sem Bluetooth. Os dois celulares precisam estar na mesma rede Wi‑Fi. Agora você pode trocar os códigos usando QR Code.</p>
 
         <div id="localRoleStep" class="local-step">Escolha quem vai iniciar a conexão.</div>
         <div class="local-actions">
@@ -120,22 +129,46 @@
 
         <div id="localHostArea" class="local-area" hidden>
           <p><strong>CELULAR 1 — CRIADOR</strong></p>
-          <p class="local-small">1. Gere o código abaixo. 2. Envie-o para o celular 2.</p>
+          <p class="local-small">1. Gere a conexão. 2. Mostre o QR Code para o celular 2 escanear.</p>
+          <div id="localOfferQR" class="qr-box" hidden>
+            <div class="qr-title">📷 ESCANEIE ESTE QR CODE NO CELULAR 2</div>
+            <div id="localOfferQRImage"></div>
+            <div class="qr-note">O código continua disponível abaixo como alternativa.</div>
+          </div>
           <textarea id="localOffer" class="local-code" readonly placeholder="O código aparecerá aqui..."></textarea>
-          <button id="btnLocalCopyOffer" class="secondary">📋 COPIAR CÓDIGO</button>
-          <p class="local-small">Depois que o celular 2 gerar a resposta, cole-a aqui:</p>
+          <button id="btnLocalCopyOffer" class="secondary">📋 COPIAR CÓDIGO (ALTERNATIVA)</button>
+          <p class="local-small">Depois que o celular 2 gerar a resposta, escaneie o QR Code mostrado nele.</p>
+          <button id="btnQRScanAnswer">📷 ESCANEAR QR DE RESPOSTA</button>
+          <div id="qrScannerAnswer" class="qr-scanner" hidden>
+            <video id="qrVideoAnswer" class="qr-video" playsinline muted></video>
+            <div id="qrScanStatusAnswer" class="qr-scan-status">Aponte a câmera para o QR Code.</div>
+            <button id="btnQRStopAnswer" class="secondary">PARAR CÂMERA</button>
+          </div>
+          <div class="qr-divider">ou use o método antigo</div>
           <textarea id="localAnswerInput" class="local-code" placeholder="Cole aqui a resposta do celular 2..."></textarea>
           <button id="btnLocalAcceptAnswer">🔗 CONECTAR</button>
         </div>
 
         <div id="localJoinArea" class="local-area" hidden>
           <p><strong>CELULAR 2 — ENTRANDO</strong></p>
-          <p class="local-small">Cole abaixo o código recebido do celular 1:</p>
+          <p class="local-small">Use a câmera para escanear o QR Code mostrado no celular 1.</p>
+          <button id="btnQRScanOffer">📷 ESCANEAR QR DO CELULAR 1</button>
+          <div id="qrScannerOffer" class="qr-scanner" hidden>
+            <video id="qrVideoOffer" class="qr-video" playsinline muted></video>
+            <div id="qrScanStatusOffer" class="qr-scan-status">Aponte a câmera para o QR Code.</div>
+            <button id="btnQRStopOffer" class="secondary">PARAR CÂMERA</button>
+          </div>
+          <div class="qr-divider">ou use o método antigo</div>
           <textarea id="localOfferInput" class="local-code" placeholder="Cole aqui o código do celular 1..."></textarea>
           <button id="btnLocalMakeAnswer">↩️ GERAR RESPOSTA</button>
-          <p class="local-small">Envie o código abaixo de volta para o celular 1:</p>
+          <p class="local-small">Agora mostre este QR Code de resposta para o celular 1.</p>
+          <div id="localAnswerQR" class="qr-box" hidden>
+            <div class="qr-title">📷 ESCANEIE ESTE QR CODE NO CELULAR 1</div>
+            <div id="localAnswerQRImage"></div>
+            <div class="qr-note">O código continua disponível abaixo como alternativa.</div>
+          </div>
           <textarea id="localAnswer" class="local-code" readonly placeholder="A resposta aparecerá aqui..."></textarea>
-          <button id="btnLocalCopyAnswer" class="secondary">📋 COPIAR RESPOSTA</button>
+          <button id="btnLocalCopyAnswer" class="secondary">📋 COPIAR RESPOSTA (ALTERNATIVA)</button>
         </div>
 
         <div id="localStatus" class="local-status">Aguardando escolha.</div>
@@ -162,7 +195,9 @@
 
   <script src="script.js?v=20260914_03"></script>
   <script src="firebase-online.js?v=20260914_02"></script>
-  <script src="rede-local.js?v=20260914_03"></script>
+  <script src="rede-local.js?v=20260914_02"></script>
+  <script src="qr-generator-local.js?v=20260914_01"></script>
+  <script src="qr-local-ui.js?v=20260914_01"></script>
   <script>
     (function(){
       const splash=document.getElementById('splashScreen');
