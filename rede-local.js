@@ -128,6 +128,9 @@
       if($('localMessageArea')) $('localMessageArea').hidden=true;
       if($('localRoleStep')) $('localRoleStep').textContent='✅ Conexão pronta. Os dois podem posicionar suas frotas.';
       setStatus('✅ CONEXÃO ESTABELECIDA! Agora os dois celulares devem posicionar a frota.');
+      // A navegação para a tela de posicionamento é feita aqui,
+      // independentemente do módulo principal do jogo.
+      setScreen('setup');
       if(window.BNLocalCore) window.BNLocalCore.enterSetup();
       prepareLocalBattleUI();
     };
